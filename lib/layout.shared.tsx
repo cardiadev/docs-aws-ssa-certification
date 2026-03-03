@@ -1,16 +1,17 @@
+import { i18n } from '@/lib/i18n';
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 
-// fill this with your actual GitHub info, for example:
 export const gitConfig = {
-  user: 'fuma-nama',
-  repo: 'fumadocs',
+  user: 'cardiadev',
+  repo: 'docs-aws-ssa-certification',
   branch: 'main',
 };
 
-export function baseOptions(): BaseLayoutProps {
+export function baseOptions(locale: string): BaseLayoutProps {
   return {
+    i18n,
     nav: {
-      title: 'My App',
+      title: 'AWS SSA Notes',
     },
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
