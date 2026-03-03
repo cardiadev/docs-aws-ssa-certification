@@ -235,7 +235,7 @@ const modules: Module[] = [
 ];
 
 function getPrefix(lang: string): string {
-  return lang === 'es' ? '' : `/${lang}`;
+  return `/${lang}`;
 }
 
 export default async function HomePage({
