@@ -1,0 +1,23 @@
+{
+  "title": "Networking",
+  "pages": [
+    "vpc",
+    "subnets",
+    "routing",
+    "internet-gateways",
+    "nat-gateways",
+    "dns",
+    "elastic-ip",
+    "security-groups-nacls",
+    "load-balancers",
+    "vpn",
+    "direct-connect",
+    "vpc-peering",
+    "transit-gateway",
+    "privatelink",
+    "cloudfront",
+    "lambda-edge",
+    "global-accelerator",
+    "route53"
+  ]
+}

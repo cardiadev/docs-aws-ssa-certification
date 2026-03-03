@@ -1,0 +1,23 @@
+{
+  "title": "AWS SSA",
+  "pages": [
+    "---Services---",
+    "networking",
+    "storage",
+    "compute",
+    "database",
+    "application-integration",
+    "data-ml",
+    "migration-transfer",
+    "management-governance",
+    "security",
+    "---Architecture Design---",
+    "design-security",
+    "design-reliability",
+    "design-performance",
+    "design-cost",
+    "---Practice & Exam---",
+    "design-challenges",
+    "exam-prep"
+  ]
+}

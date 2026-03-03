@@ -1,0 +1,17 @@
+{
+  "title": "Application Integration",
+  "pages": [
+    "autoscaling",
+    "elastic-load-balancing",
+    "api-gateway",
+    "appflow",
+    "sns",
+    "sqs",
+    "amazon-mq",
+    "eventbridge",
+    "simple-email-service",
+    "step-functions",
+    "simple-workflow-service",
+    "managed-apache-airflow"
+  ]
+}

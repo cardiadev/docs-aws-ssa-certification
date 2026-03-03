@@ -1,0 +1,14 @@
+{
+  "title": "Migration & Transfer",
+  "pages": [
+    "migration-hub",
+    "application-discovery",
+    "application-migration",
+    "database-migration",
+    "elastic-disaster-recovery",
+    "mainframe-modernization",
+    "datasync",
+    "transfer-family",
+    "snow-family"
+  ]
+}
