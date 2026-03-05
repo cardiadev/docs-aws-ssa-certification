@@ -1,0 +1,19 @@
+{
+  "title": "Services - Management and Governance",
+  "pages": [
+    "cloudformation",
+    "cdk",
+    "cloudwatch",
+    "x-ray",
+    "health-dashboard",
+    "prometheus",
+    "grafana",
+    "trusted-advisor",
+    "organizations",
+    "control-tower",
+    "systems-manager",
+    "service-catalog",
+    "license-manager",
+    "resilience-hub"
+  ]
+}

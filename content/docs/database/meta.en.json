@@ -1,0 +1,19 @@
+{
+  "title": "Services - Database",
+  "pages": [
+    "rds",
+    "aurora",
+    "rds-proxy",
+    "redshift",
+    "dynamodb",
+    "dynamodb-accelerator",
+    "opensearch",
+    "elasticache",
+    "memorydb",
+    "documentdb",
+    "keyspaces",
+    "neptune",
+    "qldb",
+    "timestream"
+  ]
+}

@@ -1,0 +1,37 @@
+---
+title: "Setting Up Your Own AWS Account"
+description: "Step-by-step guide to creating and configuring your AWS account."
+---
+
+# Setting Up Your Own AWS Account
+
+## Why You Need a Personal Account
+
+Playgrounds cover most exam services, but not all. A personal account gives you full access to explore **any service without restrictions**.
+
+## Rule #1 (Critical): Don't Leave Anything Running
+
+> **⚠️ Always stop or delete resources when you finish a study session.**
+
+This includes: NAT Gateways, Elastic IPs, storage volumes, EC2 instances, etc. Forgetting to clean up is the most common cause of unexpected charges.
+
+## Email Tip
+
+If you use Gmail or Yahoo, use the **"+" alias trick**:
+- `yourname+aws1@gmail.com` → creates a unique AWS account that still arrives in your main inbox.
+
+## Signup Process
+
+1. Go to AWS and click **"Create a free account"**.
+2. Provide an email address, password, and account name.
+3. Enter a **valid credit card** (required even on the free tier).
+4. Verify your identity by phone.
+5. Select the **Free Support Plan (Basic Support)** — no paid support needed as a student.
+
+## After Registration
+
+| Step | Action |
+|---|---|
+| Activation | The account may take up to **24 hours** to fully activate globally |
+| Avoid Root | Create an **IAM User** with admin rights and use it for all logins |
+| AWS Budgets | Set a **$5–$10 budget alert** to be notified before incurring significant charges |

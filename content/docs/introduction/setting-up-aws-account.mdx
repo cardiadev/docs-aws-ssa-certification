@@ -1,6 +1,37 @@
 ---
-title: "Setting up your own AWS Account - A walkthrough"
+title: "Configurar tu Propia Cuenta de AWS"
 description: "Guía paso a paso para crear y configurar tu cuenta de AWS."
 ---
 
-> 🚧 Contenido en construcción.
+# Configurar tu Propia Cuenta de AWS
+
+## ¿Por Qué Necesitas una Cuenta Personal?
+
+Los Playgrounds cubren la mayoría de los servicios del examen, pero no todos. Una cuenta personal te da acceso completo para explorar **cualquier servicio sin restricciones**.
+
+## Regla #1 (Crítica): No Dejes Nada Corriendo
+
+> **⚠️ Siempre pausa o elimina los recursos cuando termines tus sesiones de estudio.**
+
+Esto incluye: NAT Gateways, IPs Elásticas, volúmenes de almacenamiento, instancias EC2, etc. Olvidar apagar recursos es la causa más común de cobros inesperados.
+
+## Consejo de Correo Electrónico
+
+Si usas Gmail o Yahoo, puedes usar el truco del **alias "+"**:
+- `tunombre+aws1@gmail.com` → crea una cuenta AWS única que llega a tu bandeja principal.
+
+## Proceso de Registro
+
+1. Ve a AWS y haz clic en **"Create a free account"**.
+2. Proporciona un correo electrónico, contraseña y nombre para la cuenta.
+3. Ingresa una **tarjeta de crédito válida** (requerida, incluso en el tier gratuito).
+4. Verifica tu identidad por teléfono.
+5. Selecciona el **Plan de Soporte Gratuito (Basic Support)** — no necesitas soporte de pago.
+
+## Después del Registro
+
+| Paso | Acción |
+|---|---|
+| Activación | La cuenta puede tardar hasta **24 horas** en activarse globalmente |
+| Evitar Root | Crea un **Usuario IAM** con permisos administrativos y úsalo preferentemente |
+| AWS Budgets | Configura una alerta de presupuesto de **$5–$10** para recibir notificaciones antes de incurrir en costos significativos |

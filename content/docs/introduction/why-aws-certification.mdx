@@ -1,6 +1,70 @@
 ---
-title: "Why AWS Solutions Architecture Certification and what is a solutions architect?"
-description: "El valor de la certificación AWS SAA y el rol de un arquitecto de soluciones."
+title: "¿Por Qué la Certificación AWS SAA?"
+description: "El valor de la certificación SAA, el rol del arquitecto de soluciones y ejemplos de preguntas del examen."
 ---
 
-> 🚧 Contenido en construcción.
+# ¿Por Qué la Certificación AWS Solutions Architect Associate?
+
+## El Mapa de Certificaciones AWS
+
+AWS tiene un camino de certificaciones bien definido:
+
+```
+Cloud Practitioner (Foundational)
+        ↓
+Solutions Architect Associate  ←  estás aquí
+Developer Associate
+SysOps Associate
+        ↓
+Professional / Specialty
+```
+
+- Esta es la certificación de nivel Associate **más popular** en todo AWS.
+- Es el siguiente paso natural después de Cloud Practitioner.
+- No requiere experiencia en codificación ni en operaciones — solo comprensión de servicios y diseño.
+
+## ¿Qué es un Solutions Architect?
+
+Un Solutions Architect **diseña soluciones técnicas basadas en necesidades de negocio**, típicamente cruzando varios servicios o productos.
+
+| Tipo de Arquitecto | Alcance |
+|---|---|
+| **Enterprise Architect** | Estrategia de alto nivel, sin profundidad técnica, cubre toda la empresa |
+| **Solutions Architect** | Puente entre negocio y técnica, multi-servicio, táctico |
+| **Application Architect** | Profundidad técnica en un solo sistema o aplicación |
+
+> El SA está en el **medio**: más técnico que el Enterprise Architect, más amplio que el Application Architect.
+
+## ¿Por Qué Es Tan Amplio el Examen?
+
+Los Solutions Architects deben entender **todos** los servicios core de AWS a nivel básico porque su trabajo es conectar múltiples servicios para resolver un problema de negocio. Por eso el examen cubre Networking, Storage, Compute, Database, Security, ML, etc.
+
+## Formato del Examen
+
+- **65 preguntas** (130 minutos aprox.)
+- **SAA-C03** es la versión actual
+- Preguntas de **opción múltiple** y **respuesta múltiple** basadas en escenarios
+- **No** hay preguntas de memorización pura — debes entender cómo aplicar los servicios
+
+## Ejemplos de Preguntas
+
+### Ejemplo 1: NAT Gateway
+> *Instancias EC2 en subnets privadas necesitan descargar parches desde internet, pero no pueden ser accesibles públicamente. ¿Qué hacer?*
+
+- Configura un **NAT Gateway en una subnet pública**
+- Crea una **route table personalizada** que apunte al NAT Gateway y asóciala a las subnets privadas
+
+### Ejemplo 2: Hibernación de EC2
+> *Las instancias deben preservar la memoria RAM durante un apagado de 2 semanas. ¿Qué solución usar?*
+
+- Habilitar la instancia para **hibernación** — la única característica de EC2 que preserva la memoria de instancia en disco
+
+### Ejemplo 3: Elastic Network Interface
+> *Se necesita redirigir tráfico a una instancia standby si la principal falla, usando su dirección IP privada. ¿Cómo?*
+
+- Adjuntar una **ENI (Elastic Network Interface) secundaria** con la IP privada y moverla a la instancia standby cuando sea necesario
+
+### Ejemplo 4: Pre-signed URL en S3
+> *Una página web necesita hacer GET requests autenticadas a un bucket S3 desde otro dominio. ¿Qué se necesita?*
+
+- Proveer a los usuarios con una **Pre-signed URL** que contenga un token de autenticación con tiempo de expiración

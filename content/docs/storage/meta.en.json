@@ -1,0 +1,19 @@
+{
+  "title": "Services - Storage",
+  "pages": [
+    "ebs",
+    "instance-store",
+    "efs",
+    "fsx",
+    "s3-overview",
+    "s3-storage-classes",
+    "s3-versioning",
+    "s3-acl-policies",
+    "s3-static-website",
+    "s3-presigned-urls",
+    "s3-access-points",
+    "aws-backup",
+    "elastic-disaster-recovery",
+    "storage-gateway"
+  ]
+}

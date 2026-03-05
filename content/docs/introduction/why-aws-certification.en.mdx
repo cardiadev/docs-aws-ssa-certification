@@ -1,0 +1,70 @@
+---
+title: "Why the AWS SAA Certification?"
+description: "The value of the SAA certification, the solutions architect role, and sample exam questions."
+---
+
+# Why the AWS Solutions Architect Associate Certification?
+
+## The AWS Certification Roadmap
+
+AWS has a well-defined certification path:
+
+```
+Cloud Practitioner (Foundational)
+        ↓
+Solutions Architect Associate  ←  you are here
+Developer Associate
+SysOps Associate
+        ↓
+Professional / Specialty
+```
+
+- This is the **most popular** Associate-level certification in all of AWS.
+- It is the natural next step after Cloud Practitioner.
+- Does **not** require coding or operational experience — only understanding of services and design.
+
+## What Is a Solutions Architect?
+
+A Solutions Architect **designs technical solutions based on business requirements**, typically spanning multiple services or products.
+
+| Architect Type | Scope |
+|---|---|
+| **Enterprise Architect** | High-level strategy, no technical depth, covers the entire organization |
+| **Solutions Architect** | Bridge between business and technical teams, multi-service, tactical |
+| **Application Architect** | Deep technical expertise within a single system or application |
+
+> The SA sits in the **middle**: more technical than the Enterprise Architect, broader than the Application Architect.
+
+## Why Is the Exam So Broad?
+
+Solutions Architects must understand **all** core AWS services at a basic level because their job is to connect multiple services to solve a business problem. That is why the exam covers Networking, Storage, Compute, Database, Security, ML, and more.
+
+## Exam Format
+
+- **65 questions** (~130 minutes)
+- **SAA-C03** is the current version
+- **Multiple choice** and **multiple response** scenario-based questions
+- **No** pure memory recall — you must understand how to apply services
+
+## Sample Exam Questions
+
+### Example 1: NAT Gateway
+> *EC2 instances in private subnets need to download patches from the internet but cannot be publicly accessible. What do you do?*
+
+- Configure a **NAT Gateway in a public subnet**
+- Create a **custom route table** pointing to the NAT Gateway and associate it with the private subnets
+
+### Example 2: EC2 Hibernation
+> *Instances must preserve RAM memory during a 2-week company shutdown. Which solution should you use?*
+
+- Enable the instance for **hibernation** — the only EC2 feature that preserves instance memory to disk
+
+### Example 3: Elastic Network Interface
+> *Traffic needs to be redirected to a standby instance on failure, using the primary's private IP. How?*
+
+- Attach a secondary **ENI (Elastic Network Interface)** with the private IP and move it to the standby instance when needed
+
+### Example 4: S3 Pre-signed URL
+> *A webpage needs to make authenticated GET requests to an S3 bucket from a different domain. What is required?*
+
+- Provide users with a **Pre-signed URL** containing an authentication token with an expiration timer

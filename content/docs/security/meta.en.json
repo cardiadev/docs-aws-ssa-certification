@@ -1,0 +1,26 @@
+{
+  "title": "Services - Security",
+  "pages": [
+    "iam",
+    "iam-identity-center",
+    "cognito",
+    "directory-service",
+    "verified-permissions",
+    "cloudtrail",
+    "config",
+    "guardduty",
+    "inspector",
+    "macie",
+    "security-hub",
+    "kms",
+    "cloudhsm",
+    "certificate-manager",
+    "secrets-manager",
+    "nacls-secgroups",
+    "security-lake",
+    "waf",
+    "shield",
+    "network-firewall",
+    "firewall-manager"
+  ]
+}

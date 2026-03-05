@@ -1,0 +1,24 @@
+{
+  "title": "Services - Data and ML",
+  "pages": [
+    "kinesis",
+    "kafka",
+    "glue",
+    "emr",
+    "glue-databrew",
+    "lake-formation",
+    "athena",
+    "quicksight",
+    "sagemaker",
+    "rekognition",
+    "polly",
+    "lex",
+    "comprehend",
+    "forecast",
+    "augmented-ai",
+    "fraud-detector",
+    "transcribe",
+    "translate",
+    "textract"
+  ]
+}

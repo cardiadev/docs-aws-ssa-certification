@@ -1,0 +1,20 @@
+{
+  "title": "Services - Compute",
+  "pages": [
+    "ec2",
+    "ec2-image-builder",
+    "elastic-network-interfaces",
+    "elastic-beanstalk",
+    "lightsail",
+    "ecs",
+    "eks",
+    "ecr",
+    "app-runner",
+    "batch",
+    "lambda",
+    "serverless-application-model",
+    "amplify",
+    "outposts",
+    "snow-family"
+  ]
+}

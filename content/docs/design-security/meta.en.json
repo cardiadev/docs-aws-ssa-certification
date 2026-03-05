@@ -1,0 +1,16 @@
+{
+  "title": "Designing for Security",
+  "pages": [
+    "design-principles",
+    "foundations",
+    "shared-responsibility",
+    "network-security",
+    "storage-security",
+    "compute-security",
+    "database-security",
+    "integration-security",
+    "data-security",
+    "migration-security",
+    "management-security"
+  ]
+}
