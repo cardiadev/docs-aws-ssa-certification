@@ -24,3 +24,9 @@ yarn-error.log*
 .env*.local
 .vercel
 next-env.d.ts
+
+# extracted course data
+scripts/output/
+
+# local secrets
+scripts/.env
