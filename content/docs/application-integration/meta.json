@@ -1,5 +1,5 @@
 {
-  "title": "Application Integration",
+  "title": "Services - Application Integration",
   "pages": [
     "autoscaling",
     "elastic-load-balancing",

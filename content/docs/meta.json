@@ -1,6 +1,8 @@
 {
   "title": "AWS SSA",
   "pages": [
+    "index",
+    "introduction",
     "---Services---",
     "networking",
     "storage",

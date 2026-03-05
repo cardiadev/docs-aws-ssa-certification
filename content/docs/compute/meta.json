@@ -1,5 +1,5 @@
 {
-  "title": "Compute",
+  "title": "Services - Compute",
   "pages": [
     "ec2",
     "ec2-image-builder",
