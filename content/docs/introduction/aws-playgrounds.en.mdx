@@ -1,31 +1,79 @@
 ---
 title: "The KodeKloud AWS Playgrounds"
-description: "KodeKloud sandbox environments for hands-on AWS practice."
+description: "KodeKloud sandbox environments for hands-on AWS practice at no cost."
 ---
 
-# The KodeKloud AWS Playgrounds
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## What Are Playgrounds?
 
-**KodeKloud Playgrounds** (available at KodeKloud.com/Playgrounds) are sandbox environments where you can interact with AWS services hands-on **without personal billing charges**.
+**KodeKloud Playgrounds** are AWS sandbox environments where you can practice with real services **without using your credit card or personal account**. Each session lasts up to **3 hours** and gives you access to a temporary AWS account with its own credentials.
 
-## Key Advantages
+<Callout type="info" title="Browser-based access">
+Access Playgrounds at **KodeKloud.com/Playgrounds**. No installation needed — everything works directly in your web browser.
+</Callout>
 
-- **No personal credit card**: You won't be billed for anything.
-- **Time-limited and safe**: Sessions typically last up to 3 hours.
-- **Broad service coverage**: Supports most SAA exam services: EC2, RDS, SNS, KMS, VPCs, security groups, key pairs, etc.
+## Advantages vs. Personal Account
 
-### Services Not Available
+| Aspect | KodeKloud Playground | Personal AWS Account |
+|---|---|---|
+| **Cost** | Free (included with course) | Free Tier + risk of charges |
+| **Setup** | Zero — environment ready instantly | Requires signup, credit card, IAM |
+| **Billing risk** | None | High if you forget to shut down resources |
+| **Duration** | **3 hours** per session | Unlimited |
+| **Service coverage** | Most SAA exam services | All services |
+| **Ideal for** | Quick practice while studying | Deep exploration and advanced services |
 
-Some DevOps services are not supported in Playgrounds, such as **CodePipeline** and **CodeDeploy**.
+## Available Services
 
-## Workflow
+Playgrounds support **most services relevant to the SAA exam**:
 
-1. Start a lab on KodeKloud.
-2. Receive a temporary **Account ID**, IAM Username, and Password.
-3. Log into the AWS console with those credentials.
-4. Explore, launch resources, and practice freely in the sandboxed environment.
+| Category | Available Services |
+|---|---|
+| **Compute** | EC2, Lambda |
+| **Database** | RDS, DynamoDB, DocumentDB, ElastiCache |
+| **Containers** | ECS, EKS, ECR |
+| **Networking** | VPC, Subnets, Security Groups, Key Pairs |
+| **Storage** | S3, EBS |
+| **Messaging** | SNS, SQS |
+| **Security** | KMS, IAM |
 
-## When to Use Them
+<Callout type="warn" title="Services NOT available">
+Some **DevOps** services are not available in Playgrounds:
+- **CodePipeline**
+- **CodeDeploy**
 
-Open a Playground whenever you encounter a syllabus service you don't fully understand. Hands-on practice consolidates learning far faster than reading alone.
+To practice with these services, you'll need your **personal AWS account**.
+</Callout>
+
+## How to Use a Playground
+
+| Step | Action | Detail |
+|---|---|---|
+| 1 | **Start the lab** on KodeKloud | Click on the AWS Playground |
+| 2 | **Receive credentials** | Account ID, IAM username, and temporary password |
+| 3 | **Log in** to the AWS console | Use the provided credentials |
+| 4 | **Practice freely** | Launch resources, configure services, experiment |
+| 5 | **Session expires** automatically | After 3 hours everything is deleted |
+
+<Callout type="idea" title="Tip: open a Playground for each new service">
+Every time you learn a new service in the course, **open a Playground and practice it yourself**. Hands-on practice consolidates learning far faster than just watching videos. Don't wait until you finish an entire section — practice service by service.
+</Callout>
+
+## When to Use Playground vs. Personal Account?
+
+| Situation | Recommendation |
+|---|---|
+| Quickly practice a course service | **Playground** |
+| Experiment with complex multi-service setups | **Personal account** |
+| Test DevOps services (CodePipeline, CodeDeploy) | **Personal account** |
+| First time using a service | **Playground** (no risk) |
+| Create projects that persist beyond 3 hours | **Personal account** |
+
+<Callout type="success" title="Summary">
+- **Playgrounds** = free 3-hour AWS environments included with the course
+- Support **most exam services** (EC2, RDS, S3, VPC, Lambda, etc.)
+- **Not available**: CodePipeline and CodeDeploy (use your personal account for these)
+- **Pro-tip**: open a Playground every time you learn a new service
+- **Zero risk**: no charges, and everything is deleted when the session expires
+</Callout>

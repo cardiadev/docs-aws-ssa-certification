@@ -3,29 +3,65 @@ title: "Prerrequisitos: Mock Exam de Cloud Practitioner"
 description: "Evalúa si tienes el nivel requerido antes de comenzar el curso SAA."
 ---
 
-# Prerrequisitos: ¿Estás Listo?
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## ¿Por Qué Importa Esto?
 
-Este curso de **Solutions Architect Associate** asume que ya tienes un nivel equivalente al de la certificación **AWS Cloud Practitioner**. Si no tienes esa base, te vas a encontrar con muchas dificultades.
+Este curso de **Solutions Architect Associate (SAA)** asume que ya tienes un nivel equivalente al de la certificación **AWS Cloud Practitioner (CCP)**. Esto significa que debes entender conceptos básicos como:
 
-## El Mock Exam Opcíonal
-
-- Se te proporciona un **link a un mock exam** de Cloud Practitioner.
-- Es **opcional**, pero altamente recomendado si no tienes la certificación.
-- Sirve para descubrir si estás listo para empezar este curso.
-
-## Criterio de Decisión
-
-| Puntuación | Recomendación |
+| Concepto | Ejemplo |
 |---|---|
-| **≥ 70** | ✅ Tienes la base suficiente — continúa con este curso |
-| **< 70** | ⚠️ Se recomienda tomar el curso de Cloud Practitioner primero |
+| **Regiones y AZs** | Saber qué es us-east-1, qué es una Availability Zone |
+| **EC2 básico** | Qué es una instancia, tipos de instancia, AMIs |
+| **S3 básico** | Qué es un bucket, objetos, permisos básicos |
+| **IAM básico** | Usuarios, grupos, políticas, roles |
+| **Modelo de precios** | Free Tier, On-Demand, Reserved |
 
-> No es **obligatorio** tener la certificación, pero si no tienes el conocimiento base, este curso será muy difícil.
+<Callout type="warn" title="Sin esta base, el curso será muy difícil">
+No es **obligatorio** tener la certificación CCP, pero si no entiendes estos conceptos básicos, este curso avanzará demasiado rápido y te sentirás perdido.
+</Callout>
 
-## Próximos Pasos
+## El Mock Exam de Cloud Practitioner
 
-1. Toma el mock exam de Cloud Practitioner.
-2. Si pasas con 70+: ¡sigue adelante!
-3. Si no pasas: regresa a tomar el [curso de Cloud Practitioner de KodeKloud](https://kodekloud.com) y luego vuelve aquí.
+El curso incluye un **mock exam de Cloud Practitioner** como punto de control. Es **opcional pero muy recomendado** si no tienes la certificación.
+
+| Aspecto | Detalle |
+|---|---|
+| **Formato** | Preguntas de opción múltiple tipo CCP |
+| **Propósito** | Verificar que tienes la base necesaria |
+| **Obligatorio** | No, pero altamente recomendado |
+| **Criterio de aprobación** | **≥70%** |
+
+## Interpretación de tu Puntuación
+
+| Puntuación | Resultado | Acción Recomendada |
+|---|---|---|
+| **≥70%** | **Aprobado** — tienes la base suficiente | Continúa con el curso SAA sin problemas |
+| **50–69%** | **Límite** — conocimiento parcial | Puedes continuar, pero considera repasar los conceptos donde fallaste |
+| **&lt;50%** | **Insuficiente** — necesitas refuerzo | Toma el curso de Cloud Practitioner primero |
+
+<Callout type="info" title="El ∐70% es tu línea de decisión">
+Si obtienes **70% o más**, tienes suficiente base para continuar. Si estás por debajo, no es una derrota — simplemente significa que necesitas construir la base primero con el curso de Cloud Practitioner.
+</Callout>
+
+## Flujo de Decisión
+
+| ¿Tienes CCP? | ¿Tomaste el mock exam? | Puntuación | → Acción |
+|---|---|---|---|
+| **Sí** (certificación aprobada) | No necesario | — | Continúa con SAA |
+| **No**, pero tengo experiencia AWS | **Sí** | ≥70% | Continúa con SAA |
+| **No**, pero tengo experiencia AWS | **Sí** | &lt;70% | Toma el curso CCP primero |
+| **No**, sin experiencia | **Sí** | Cualquiera | Toma el curso CCP primero |
+| **No**, sin experiencia | **No** | — | Toma el curso CCP primero |
+
+<Callout type="idea" title="Mismos instructores en CCP">
+**Sanjeev Thiyagarajan** y **Michael Forrester** también enseñan el curso de Cloud Practitioner en KodeKloud. La transición de CCP a SAA será natural y consistente.
+</Callout>
+
+<Callout type="success" title="Resumen">
+- El curso SAA requiere **nivel Cloud Practitioner** como base
+- Toma el **mock exam de CCP** incluido en el curso para verificar tu nivel
+- **≥70%** = continúa con SAA | **&lt;70%** = toma el curso de CCP primero
+- No es obligatorio tener la certificación, pero sí el **conocimiento equivalente**
+- Si necesitas CCP, los **mismos instructores** te enseñan ese curso
+</Callout>

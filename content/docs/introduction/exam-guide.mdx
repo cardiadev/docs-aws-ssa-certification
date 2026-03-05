@@ -1,37 +1,87 @@
 ---
 title: "Guía del Examen de Arquitectura de Soluciones"
-description: "Guía del examen SAA-C03: dominios, formato y qué estudiar."
+description: "Guía del examen SAA-C03: dominios, formato, pesos y qué estudiar."
 ---
 
-# Guía del Examen SAA-C03
+<Callout type="info" title="¿De dónde sale el contenido del curso?">
+Todo el curso está alineado con la **guía oficial del examen SAA-C03** publicada por AWS. Puedes buscar "SAA-C03 exam guide" en Google para acceder al documento fuente.
+</Callout>
 
 ## Propósito del Examen
 
-El examen **SAA-C03** valida tu habilidad para diseñar y revisar soluciones y arquitecturas en AWS, optimizando en cuatro ejes: seguridad, resiliencia, rendimiento y costos.
+El examen **SAA-C03** valida tu capacidad para:
+
+- **Diseñar** soluciones y arquitecturas nuevas en AWS
+- **Revisar** arquitecturas existentes y determinar si necesitan mejoras
+- Optimizar en los **cuatro ejes del Well-Architected Framework**: seguridad, resiliencia, rendimiento y costos
 
 ## Candidato Objetivo
 
-Idealmente, el candidato tiene **al menos un año de experiencia práctica con AWS**. Sin embargo, construir un portafolio de proyectos puede compensar la falta de experiencia laboral formal.
+| Aspecto | Detalle |
+|---|---|
+| Experiencia ideal | **Al menos 1 año** de experiencia hands-on con AWS |
+| Alternativa | Un **portafolio de proyectos** puede compensar la falta de experiencia laboral |
+| Requisitos técnicos | No requiere coding ni experiencia operacional |
+| Conocimiento previo | Nivel **Cloud Practitioner** (foundation) |
+
+<Callout type="idea" title="Consejo del instructor">
+Después de terminar el curso, construye un portafolio. Los proyectos prácticos demuestran a los empleadores que sabes aplicar lo aprendido — no subestimes su valor.
+</Callout>
 
 ## Formato del Examen
 
 | Aspecto | Detalle |
 |---|---|
-| Total de preguntas | 65 (50 calificadas + 15 de prueba no puntuadas) |
-| Tiempo | 130 minutos |
-| Tipos de pregunta | Opción múltiple / Respuesta múltiple |
-| Puntuación mínima | 720 / 1000 |
-| Recomendación práctica | Apuntar a 90%+ en simulacros |
+| **Código del examen** | SAA-C03 |
+| **Total de preguntas** | 65 (50 calificadas + 15 de prueba no puntuadas) |
+| **Tiempo** | 130 minutos |
+| **Opción múltiple** | Una sola respuesta correcta (no lo indica explícitamente) |
+| **Respuesta múltiple** | Dos o más respuestas correctas (indicará "seleccione dos" o más) |
+| **Puntuación mínima** | **720 / 1000** |
+
+<Callout type="warn" title="Objetivo en práctica: apunta al 90%">
+El corte real para aprobar varía ligeramente según la dificultad del examen. Apuntar a un **90% en simulacros** te da un margen de seguridad cómodo. Si en práctica llegas a los 80s, probablemente aprobarás — pero no te confíes.
+</Callout>
 
 ## Dominios del Examen
 
-| Dominio | Contenido | Peso |
-|---|---|---|
-| 1 | Diseño de Arquitecturas Seguras | 30% |
-| 2 | Diseño de Arquitecturas Resilientes | 26% |
-| 3 | Diseño de Arquitecturas de Alto Rendimiento | 24% |
-| 4 | Diseño de Arquitecturas Optimizadas en Costos | 20% |
+Estas son las **cuatro áreas** que componen el 100% del examen. Nota cómo **seguridad tiene el mayor peso**:
 
-## Nota sobre Data Pipelines
+| Dominio | Contenido | Peso | Enfoque |
+|---|---|---|---|
+| 1 | **Arquitecturas Seguras** | **30%** | IAM, cifrado, acceso, firewalls, seguridad en red |
+| 2 | **Arquitecturas Resilientes** | **26%** | Alta disponibilidad, tolerancia a fallos, recuperación ante desastres |
+| 3 | **Arquitecturas de Alto Rendimiento** | **24%** | Escalabilidad, caching, optimización de cómputo y storage |
+| 4 | **Arquitecturas Optimizadas en Costos** | **20%** | Right-sizing, Reserved/Spot instances, presupuestos, auto scaling |
 
-Aunque es un examen de arquitectura, incluye preguntas sobre **diseño de soluciones de ingestión y transformación de datos**, por lo que algunos servicios de ML y análisis (Glue, Kinesis, Athena, etc.) son parte del temario.
+<Callout type="info" title="Cambio clave en SAA-C03 vs versiones anteriores">
+El Dominio 4 (costos) bajó de peso respecto a versiones anteriores. En cambio, el **Dominio 3 ahora incluye un task statement nuevo**: diseño de soluciones de **ingestión y transformación de datos** (data pipelines).
+</Callout>
+
+## Data Pipelines y Servicios ML
+
+Aunque es un examen de arquitectura, el SAA-C03 **incluye preguntas sobre pipelines de datos**. Esto significa que servicios como los siguientes son parte del temario:
+
+| Servicio | Rol en el pipeline |
+|---|---|
+| **Kinesis** | Ingesta de datos en streaming (real-time) |
+| **Glue** | ETL serverless — extracción, transformación y carga |
+| **Athena** | Consultas SQL sobre datos en S3 (serverless) |
+| **Redshift** | Data warehouse para análisis a gran escala |
+| **SageMaker** | Entrenamiento y despliegue de modelos ML |
+
+## Tipos de Pregunta
+
+El examen es **scenario-based** (basado en escenarios), no de memoria. No te van a preguntar "¿qué es un VPC?" sino más bien:
+
+> *"Una empresa tiene instancias EC2 en subnets privadas que necesitan descargar parches de internet sin ser accesibles desde él. ¿Qué soluciones elegirías?"*
+
+Necesitarás conectar múltiples servicios y aplicar criterios de diseño (seguridad, resiliencia, costo, rendimiento) para elegir la respuesta correcta.
+
+<Callout type="success" title="Resumen para tu estudio">
+- **65 preguntas**, 130 minutos, mínimo **720/1000**
+- **Seguridad = 30%** del examen — es el dominio más pesado
+- Las preguntas son de **escenario**, no de memorización
+- Incluye **data pipelines** (Kinesis, Glue, Athena) — no te los saltes
+- Apunta a **90%+ en simulacros** para tener margen de seguridad
+</Callout>

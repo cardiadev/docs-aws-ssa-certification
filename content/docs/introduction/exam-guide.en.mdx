@@ -1,37 +1,87 @@
 ---
 title: "Solutions Architecture Exam Guide"
-description: "SAA-C03 exam format, domains, and what to focus on."
+description: "SAA-C03 exam format, domains, weights, and what to focus on."
 ---
 
-# The SAA-C03 Exam Guide
+<Callout type="info" title="Where does the course content come from?">
+This entire course is aligned with the **official SAA-C03 exam guide** published by AWS. Search for "SAA-C03 exam guide" on Google to access the source document.
+</Callout>
 
 ## Purpose of the Exam
 
-The **SAA-C03** exam validates your ability to design and review AWS solutions and architectures, optimizing across four dimensions: security, resiliency, performance, and cost.
+The **SAA-C03** exam validates your ability to:
+
+- **Design** new solutions and architectures on AWS
+- **Review** existing architectures and determine if they need improvements
+- Optimize across the **four pillars of the Well-Architected Framework**: security, resiliency, performance, and cost
 
 ## Target Candidate
 
-Ideally, you have **at least one year of hands-on experience with AWS**. That said, building a project portfolio can substitute for formal work experience.
+| Aspect | Detail |
+|---|---|
+| Ideal experience | **At least 1 year** of hands-on experience with AWS |
+| Alternative | A **project portfolio** can substitute for formal work experience |
+| Technical requirements | No coding or operational experience required |
+| Prior knowledge | **Cloud Practitioner** level (foundational) |
+
+<Callout type="idea" title="Instructor's advice">
+After completing the course, build a portfolio. Practical projects show employers you can apply what you've learned — don't underestimate their value.
+</Callout>
 
 ## Exam Format
 
 | Aspect | Detail |
 |---|---|
-| Total questions | 65 (50 scored + 15 unscored pilot questions) |
-| Time limit | 130 minutes |
-| Question types | Multiple choice / Multiple response |
-| Passing score | 720 / 1000 |
-| Practice target | Aim for 90%+ on mock exams |
+| **Exam code** | SAA-C03 |
+| **Total questions** | 65 (50 scored + 15 unscored pilot questions) |
+| **Time limit** | 130 minutes |
+| **Multiple choice** | Single correct answer (not explicitly labeled) |
+| **Multiple response** | Two or more correct answers (will say "select two" or more) |
+| **Passing score** | **720 / 1000** |
+
+<Callout type="warn" title="Practice target: aim for 90%">
+The actual passing threshold varies slightly based on exam difficulty. Aiming for **90% on mock exams** gives you a comfortable safety margin. If you're scoring in the 80s in practice, you'll likely pass — but don't get overconfident.
+</Callout>
 
 ## Exam Domains
 
-| Domain | Content | Weight |
-|---|---|---|
-| 1 | Designing Secure Architectures | 30% |
-| 2 | Designing Resilient Architectures | 26% |
-| 3 | Designing High-Performing Architectures | 24% |
-| 4 | Designing Cost-Optimized Architectures | 20% |
+These are the **four areas** that make up 100% of the exam. Notice how **security carries the most weight**:
 
-## Data Pipelines Note
+| Domain | Content | Weight | Focus Areas |
+|---|---|---|---|
+| 1 | **Secure Architectures** | **30%** | IAM, encryption, access control, firewalls, network security |
+| 2 | **Resilient Architectures** | **26%** | High availability, fault tolerance, disaster recovery |
+| 3 | **High-Performing Architectures** | **24%** | Scalability, caching, compute and storage optimization |
+| 4 | **Cost-Optimized Architectures** | **20%** | Right-sizing, Reserved/Spot instances, budgets, auto scaling |
 
-Despite being an architecture exam, it includes questions on **designing data ingestion and transformation solutions**, so ML and analytics services (Glue, Kinesis, Athena, etc.) are part of the scope.
+<Callout type="info" title="Key change in SAA-C03 vs previous versions">
+Domain 4 (cost) decreased in weight compared to earlier versions. In contrast, **Domain 3 now includes a new task statement**: designing **data ingestion and transformation solutions** (data pipelines).
+</Callout>
+
+## Data Pipelines and ML Services
+
+Although this is an architecture exam, SAA-C03 **includes questions about data pipelines**. This means services like the following are in scope:
+
+| Service | Role in the Pipeline |
+|---|---|
+| **Kinesis** | Real-time streaming data ingestion |
+| **Glue** | Serverless ETL — extract, transform, and load |
+| **Athena** | Serverless SQL queries on data in S3 |
+| **Redshift** | Data warehouse for large-scale analytics |
+| **SageMaker** | ML model training and deployment |
+
+## Question Style
+
+The exam is **scenario-based**, not memorization. You won't be asked "What is a VPC?" but rather:
+
+> *"A company has EC2 instances in private subnets that need to download patches from the internet without being directly accessible from it. Which solutions would you choose?"*
+
+You'll need to connect multiple services and apply design criteria (security, resiliency, cost, performance) to choose the correct answer.
+
+<Callout type="success" title="Study summary">
+- **65 questions**, 130 minutes, minimum **720/1000** to pass
+- **Security = 30%** of the exam — the heaviest domain
+- Questions are **scenario-based**, not recall
+- Includes **data pipelines** (Kinesis, Glue, Athena) — don't skip them
+- Aim for **90%+ on mock exams** for a safety margin
+</Callout>

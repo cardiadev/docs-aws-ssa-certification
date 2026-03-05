@@ -1,42 +1,88 @@
 ---
 title: "Registrarse y Tomar el Examen"
-description: "Cómo registrarse y tomar el examen AWS por primera vez."
+description: "Cómo registrarse y tomar el examen AWS SAA-C03 por primera vez."
 ---
 
-# Registrarse para el Examen AWS SAA
+import { Callout } from 'fumadocs-ui/components/callout';
 
-## Encontrar el Registro
+## Proceso de Registro Paso a Paso
 
-1. Ve a la página de **AWS Training and Certification**.
-2. Busca "AWS Certified Solutions Architect" y haz clic en **"Schedule an exam"**.
-3. Iniciarás sesión con una **cuenta de Amazon exclusiva para certificaciones** (diferente a tu cuenta de compras).
+El proceso de registro involucra **3 plataformas** conectadas entre sí:
 
-## Plataforma de Programación
-
-AWS usa **CertMetrics** que te redirige a **Pearson VUE** para programar el examen.
-
-## Opciones de Evaluación
-
-| Opción | Ventajas | Requisitos Adicionales |
+| Paso | Plataforma | Acción |
 |---|---|---|
-| **Centro de Pruebas (Recomendado)** | Logística simple, solo ve y presenta | Identificación oficial |
-| **Supervisión en Línea (Online Proctoring)** | Desde casa | Prueba de sistema, espacio limpio, ID con foto, reglas estrictas |
+| 1 | **AWS Training and Certification** | Busca "AWS Certified Solutions Architect Associate" y haz clic en **"Schedule an exam"** |
+| 2 | **CertMetrics** | Inicia sesión con tu **cuenta de Amazon para certificaciones** (diferente a tu cuenta de compras) |
+| 3 | **Pearson VUE** | Elige fecha, hora, modalidad (centro o en línea) y realiza el **pago** |
 
-### Reglas del Online Proctoring
-- ❌ No hay recesos durante el examen
-- ❌ No puedes ponerte de pie
-- ❌ Nada de electrónica cerca
-- ❌ No murmurar ni mover los labios
-- ❌ Nada de bálsamo labial, comida ni agua
+<Callout type="info" title="Cuenta separada para certificaciones">
+AWS usa una **cuenta de Amazon dedicada exclusivamente a certificaciones**. No es la misma que usas para compras en Amazon.com. Si es tu primera vez, crearás esta cuenta durante el proceso.
+</Callout>
 
-## Idiomas del Examen
+## Modalidades: Centro de Pruebas vs. Online Proctoring
 
-- El examen SAA está disponible en **múltiples idiomas**.
-- En Online Proctoring puedes elegir el **idioma del supervisor (proctor)**.
+| Aspecto | Centro de Pruebas | Online Proctoring |
+|---|---|---|
+| **Ubicación** | Centro autorizado por Pearson VUE | Desde tu casa/oficina |
+| **Identificación** | ID oficial con foto | ID oficial con foto |
+| **Preparación del espacio** | No aplica (el centro lo provee) | Escritorio limpio, sin objetos |
+| **Prueba de sistema** | No aplica | Obligatoria antes del examen |
+| **Recesos** | No | No |
+| **Flexibilidad de horario** | Horarios del centro | 24/7 (dependiendo de disponibilidad) |
+| **Recomendación** | **Recomendado** para primera vez | Para quienes no tienen centro cerca |
 
-## Consejos para Programar
+<Callout type="warn" title="Reglas estrictas del Online Proctoring">
+Si eliges supervisión en línea, estas reglas son **obligatorias y se monitorean activamente**:
 
-- Elige un horario en el que estés **mentalmente ágil y descansado**.
-- Evita depender de cafeína u otros estimulantes si es posible.
-- Solo puedes **reprogramar hasta 2 veces**.
-- Los cambios deben hacerse con **mínimo 24 horas de anticipación**.
+- **No hay recesos** durante todo el examen (130 minutos)
+- **No puedes ponerte de pie** ni alejarte de la cámara
+- **Nada de electrónica** cerca (teléfono, tablet, smartwatch)
+- **No murmurar** ni mover los labios mientras lees
+- **No bálsamo labial**, comida ni agua permitidos
+- Tu **escritorio debe estar completamente limpio**
+- Debes mostrar tu espacio con la cámara antes de comenzar
+
+Violar cualquiera de estas reglas puede resultar en la **anulación de tu examen**.
+</Callout>
+
+## Idiomas Disponibles
+
+| Elemento | Opciones |
+|---|---|
+| **Idioma del examen** | Inglés, japonés, coreano, chino simplificado, entre otros |
+| **Idioma del proctor** (solo online) | Puedes elegir el idioma de tu supervisor |
+| **Recomendación** | Si dominas inglés, **tómalo en inglés** — la mayoría de recursos y documentación de AWS están en este idioma |
+
+## Consejos para Programar tu Examen
+
+| Consejo | Detalle |
+|---|---|
+| **Horario óptimo** | Elige un momento del día en el que estés **mentalmente ágil y descansado** |
+| **Evita estimulantes** | No dependas de cafeína excesiva — puede generar ansiedad durante el examen |
+| **Planifica con margen** | No agendes el examen el mismo día que terminas el curso; date unos días de repaso |
+| **Llega temprano** | Si es centro de pruebas, llega **30 minutos antes** para el registro |
+
+<Callout type="warn" title="Política de reprogramación">
+- Puedes **reprogramar máximo 2 veces**
+- Los cambios deben hacerse con **mínimo 24 horas de anticipación**
+- Después de la segunda reprogramación, deberás **cancelar y pagar nuevamente**
+</Callout>
+
+## Costo del Examen
+
+| Concepto | Valor |
+|---|---|
+| **Examen SAA-C03** | **$150 USD** |
+| **Retake (si no apruebas)** | $150 USD nuevamente |
+| **Descuento por examen previo** | 50% si ya tienes otra certificación AWS activa |
+
+<Callout type="idea" title="Tip: empleadores cubren el costo">
+Muchos empleadores pagan el costo del examen como parte de su programa de desarrollo profesional. Consulta con tu empresa antes de pagar de tu bolsillo.
+</Callout>
+
+<Callout type="success" title="Resumen del flujo de registro">
+1. **AWS Training** → Busca el examen SAA-C03
+2. **CertMetrics** → Inicia sesión con tu cuenta de certificaciones
+3. **Pearson VUE** → Elige modalidad, fecha y hora → **Paga $150 USD**
+4. **Día del examen** → Llega temprano (centro) o prepara tu espacio (online)
+</Callout>

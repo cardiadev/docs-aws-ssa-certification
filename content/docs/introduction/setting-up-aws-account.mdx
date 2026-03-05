@@ -1,37 +1,90 @@
 ---
 title: "Configurar tu Propia Cuenta de AWS"
-description: "Guía paso a paso para crear y configurar tu cuenta de AWS."
+description: "Guía paso a paso para crear y configurar tu cuenta de AWS de forma segura."
 ---
 
-# Configurar tu Propia Cuenta de AWS
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## ¿Por Qué Necesitas una Cuenta Personal?
 
-Los Playgrounds cubren la mayoría de los servicios del examen, pero no todos. Una cuenta personal te da acceso completo para explorar **cualquier servicio sin restricciones**.
+Los **Playgrounds de KodeKloud** cubren la mayoría de los servicios del examen, pero **no todos**. Una cuenta personal te da acceso completo para explorar cualquier servicio sin restricciones.
 
-## Regla #1 (Crítica): No Dejes Nada Corriendo
+| Entorno | Servicios Disponibles | Costo | Restricciones |
+|---|---|---|---|
+| **KodeKloud Playgrounds** | La mayoría (EC2, RDS, S3, etc.) | Gratis (incluido en el curso) | Algunos servicios no disponibles, sesiones de 3h |
+| **Cuenta Personal AWS** | Todos los servicios | Free Tier + potencial costo | Ninguna — acceso completo |
 
-> **⚠️ Siempre pausa o elimina los recursos cuando termines tus sesiones de estudio.**
+<Callout type="error" title="Regla #1: NO dejes nada corriendo">
+Esta es la regla más importante del curso:
 
-Esto incluye: NAT Gateways, IPs Elásticas, volúmenes de almacenamiento, instancias EC2, etc. Olvidar apagar recursos es la causa más común de cobros inesperados.
+**Siempre pausa o elimina los recursos cuando termines cada sesión de estudio.**
 
-## Consejo de Correo Electrónico
+Recursos que generan cobros si los olvidas encendidos:
+- **NAT Gateways** (~$0.045/hora = ~$32/mes)
+- **IPs Elásticas** no asociadas (~$3.60/mes)
+- **Instancias EC2** (varía según tipo)
+- **Volúmenes EBS** no eliminados
+- **Load Balancers** activos
 
-Si usas Gmail o Yahoo, puedes usar el truco del **alias "+"**:
-- `tunombre+aws1@gmail.com` → crea una cuenta AWS única que llega a tu bandeja principal.
+Olvidar apagar recursos es la **causa #1 de cobros inesperados** en estudiantes.
+</Callout>
+
+## Truco del Correo Electrónico
+
+Si usas **Gmail** o **Yahoo**, puedes crear múltiples cuentas AWS con un solo correo usando el truco del **alias "+"**:
+
+| Correo Usado | Llega a | Cuenta AWS |
+|---|---|---|
+| `tunombre+aws1@gmail.com` | `tunombre@gmail.com` | Cuenta AWS #1 |
+| `tunombre+aws2@gmail.com` | `tunombre@gmail.com` | Cuenta AWS #2 (si necesitas otra) |
+
+<Callout type="idea" title="¿Por qué es útil?">
+Cada dirección con **+alias** cuenta como un correo único para AWS, pero todos llegan a tu **misma bandeja de entrada**. Útil si necesitas múltiples cuentas de Free Tier.
+</Callout>
 
 ## Proceso de Registro
 
-1. Ve a AWS y haz clic en **"Create a free account"**.
-2. Proporciona un correo electrónico, contraseña y nombre para la cuenta.
-3. Ingresa una **tarjeta de crédito válida** (requerida, incluso en el tier gratuito).
-4. Verifica tu identidad por teléfono.
-5. Selecciona el **Plan de Soporte Gratuito (Basic Support)** — no necesitas soporte de pago.
+| Paso | Acción | Detalle |
+|---|---|---|
+| 1 | Ve a **aws.amazon.com** | Haz clic en **"Create a free account"** |
+| 2 | Datos de la cuenta | Correo electrónico, contraseña y nombre de la cuenta |
+| 3 | Información de contacto | Elige **"Personal"** como tipo de cuenta |
+| 4 | Método de pago | **Tarjeta de crédito válida** (requerida incluso en Free Tier) |
+| 5 | Verificación de identidad | Código por **teléfono o SMS** |
+| 6 | Plan de soporte | Selecciona **Basic Support (Gratuito)** — no necesitas soporte de pago |
 
-## Después del Registro
+<Callout type="info" title="Activación de la cuenta">
+La cuenta puede tardar hasta **24 horas** en activarse completamente en todas las regiones. Si algunos servicios no aparecen inmediatamente, espera y vuelve a intentar.
+</Callout>
 
-| Paso | Acción |
+## Configuración Post-Registro (Obligatoria)
+
+Después de crear tu cuenta, realiza estas **dos configuraciones críticas** antes de empezar a usar servicios:
+
+### 1. Crear un Usuario IAM
+
+| Aspecto | Detalle |
 |---|---|
-| Activación | La cuenta puede tardar hasta **24 horas** en activarse globalmente |
-| Evitar Root | Crea un **Usuario IAM** con permisos administrativos y úsalo preferentemente |
-| AWS Budgets | Configura una alerta de presupuesto de **$5–$10** para recibir notificaciones antes de incurrir en costos significativos |
+| **Por qué** | La cuenta root tiene permisos ilimitados — usarla diariamente es un **riesgo de seguridad** |
+| **Qué hacer** | Crear un usuario IAM con la política **AdministratorAccess** |
+| **Resultado** | Usas ese usuario para todo tu trabajo diario; root solo para configuración de cuenta |
+
+<Callout type="warn" title="Nunca uses la cuenta root para trabajo diario">
+Esta es una **mejor práctica de seguridad** que también aparece como pregunta frecuente en el examen SAA. Siempre usa un **usuario IAM con permisos apropiados**.
+</Callout>
+
+### 2. Configurar AWS Budgets
+
+| Configuración | Valor Recomendado |
+|---|---|
+| **Presupuesto mensual** | **$5 – $10 USD** |
+| **Alerta al alcanzar** | 80% del presupuesto |
+| **Notificación** | Por correo electrónico |
+
+<Callout type="success" title="Resumen">
+- Crea tu cuenta en **aws.amazon.com** con el truco del alias +
+- **Regla #1**: siempre apaga recursos al terminar cada sesión
+- Crea un **usuario IAM** con AdministratorAccess para uso diario
+- Configura **AWS Budgets** ($5-$10) para evitar sorpresas en tu factura
+- La cuenta puede tardar **hasta 24h** en activarse completamente
+</Callout>

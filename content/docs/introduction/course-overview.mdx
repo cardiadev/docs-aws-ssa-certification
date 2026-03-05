@@ -3,41 +3,87 @@ title: "Visión General del Curso"
 description: "Descripción general del curso AWS Solutions Architect Associate en KodeKloud."
 ---
 
-# Visión General del Curso
+import { Callout } from 'fumadocs-ui/components/callout';
 
-Bienvenidos al curso de certificación **AWS Solutions Architect Associate** en KodeKloud. Este curso está dividido en dos grandes secciones:
+Bienvenidos al curso de certificación **AWS Solutions Architect Associate (SAA-C03)** en KodeKloud. Este curso fue diseñado para llevarte desde los fundamentos hasta la preparación completa para el examen, combinando **teoría**, **práctica en laboratorios reales** y **ejercicios de diseño arquitectónico**.
 
-- **Sección de Servicios:** Guiada por **Sanjeev Thiyagarajan**, cubre los servicios de AWS a nivel técnico.
-- **Sección de Diseño:** Guiada por **Michael Forrester**, cubre cómo diseñar arquitecturas usando los pilares del Well-Architected Framework.
+El curso está dirigido por **dos instructores especializados**, cada uno a cargo de una mega-sección:
 
-## Características Únicas del Curso
+| Instructor | Mega-Sección | Enfoque |
+|---|---|---|
+| **Sanjeev Thiyagarajan** | Conoce tus Servicios | Servicios AWS a nivel técnico: configuración, casos de uso, mejores prácticas |
+| **Michael Forrester** | Diseño para X | Diseño de arquitecturas en la nube usando el **Well-Architected Framework** |
 
-| Característica | Descripción |
-|---|---|
-| **Labs en el Navegador** | Sin necesidad de cuenta propia. Accede a entornos AWS reales directamente desde el navegador. |
-| **Clases Claras** | Lecciones diseñadas para ser informativas y captivantes, cubriendo exactamente lo que necesitas para la certificación. |
-| **Demos Prácticas** | Ejemplos del mundo real de servicios AWS funcionando en acción. |
-| **Quizzes de Refuerzo** | Puntos de control estratégicos para medir tu comprensión a lo largo del curso. |
-| **Gamificación** | Arrastra y suelta servicios en configuraciones arquitectónicas para aprender de forma interactiva. |
-| **Mock Exams** | Un examen al inicio (para verificar tu base) y uno al final (para medir tu progreso). |
+<Callout type="info" title="Curso completo y autocontenido">
+Este curso cubre **más de 100 servicios de AWS** organizados en 9 categorías, seguido de 4 módulos de diseño que te preparan para los escenarios del examen real. No necesitas recursos externos adicionales.
+</Callout>
+
+## Modalidades de Aprendizaje
+
+Este curso combina **6 modalidades diferentes** para maximizar tu retención y comprensión:
+
+| Modalidad | Descripción | Beneficio |
+|---|---|---|
+| **Labs en el Navegador** | Entornos AWS reales accesibles directamente desde tu navegador | Practicas sin riesgo de costos en tu cuenta personal |
+| **Clases Estructuradas** | Lecciones informativas y captivantes por servicio | Cubren exactamente lo que necesitas para la certificación |
+| **Demos Prácticas** | Ejemplos reales de servicios AWS en acción | Ves cómo se configura y opera cada servicio |
+| **Quizzes de Refuerzo** | Puntos de control estratégicos al final de cada categoría | Mides tu comprensión antes de avanzar |
+| **Gamificación** | Arrastra y suelta servicios en configuraciones arquitectónicas | Aprendes relaciones entre servicios de forma interactiva |
+| **Mock Exams** | Examen al inicio (línea base) y al final (progreso) | Simulas la experiencia real del examen SAA-C03 |
+
+<Callout type="idea" title="Consejo de estudio">
+No te saltes los **quizzes de refuerzo** ni los ejercicios de **gamificación**. Estos activan el aprendizaje activo, que es significativamente más efectivo que solo ver videos.
+</Callout>
 
 ## Estructura del Curso
 
 ### Mega-Sección 1: Conoce tus Servicios
-Categorías cubiertas:
-- Redes (Networking)
-- Almacenamiento (Storage)
-- Computación (Compute)
-- Bases de Datos (Database)
-- Integración de Aplicaciones
-- Datos y Machine Learning
-- Migración y Transferencia
-- Gestión y Gobernanza
-- Seguridad
+
+Instructor: **Sanjeev Thiyagarajan**
+
+En esta sección aprenderás **cada servicio de AWS** relevante para el examen, organizado en **9 categorías**. Cada categoría incluye clases, demos y un quiz al final.
+
+| # | Categoría | Servicios Clave (ejemplos) |
+|---|---|---|
+| 1 | **Redes** | VPC, Subnets, Route Tables, NAT Gateway, Transit Gateway |
+| 2 | **Almacenamiento** | S3, EBS, EFS, FSx, Storage Gateway |
+| 3 | **Computación** | EC2, Lambda, ECS, EKS, Elastic Beanstalk |
+| 4 | **Bases de Datos** | RDS, Aurora, DynamoDB, ElastiCache, Redshift |
+| 5 | **Integración de Aplicaciones** | SQS, SNS, Step Functions, EventBridge, API Gateway |
+| 6 | **Datos y Machine Learning** | Kinesis, Glue, Athena, SageMaker, QuickSight |
+| 7 | **Migración y Transferencia** | DMS, Snow Family, DataSync, Transfer Family |
+| 8 | **Gestión y Gobernanza** | CloudWatch, CloudTrail, Config, Systems Manager |
+| 9 | **Seguridad** | IAM, KMS, Secrets Manager, WAF, Shield |
 
 ### Mega-Sección 2: Diseño para X
-Los cuatro pilares del Well-Architected Framework:
-- **Seguridad** — Cifrado, control de accesos, buenas prácticas.
-- **Fiabilidad** — Tolerancia a fallos, alta disponibilidad.
-- **Rendimiento** — Escalabilidad, eficiencia.
-- **Optimización de Costos** — Estrategias para reducir gastos sin perder performance.
+
+Instructor: **Michael Forrester**
+
+Aquí aplicarás todo lo aprendido en la Mega-Sección 1. Se basa en los **4 pilares del Well-Architected Framework (WAF)** de AWS:
+
+| Pilar | Pregunta Clave | Temas Principales |
+|---|---|---|
+| **Seguridad** | ¿Cómo proteges tus datos y sistemas? | Cifrado en reposo/tránsito, IAM policies, seguridad de red |
+| **Fiabilidad** | ¿Cómo resistes fallos? | Multi-AZ, Auto Scaling, backups, disaster recovery |
+| **Rendimiento** | ¿Cómo optimizas la velocidad? | Caching (ElastiCache, CloudFront), right-sizing, escalado |
+| **Optimización de Costos** | ¿Cómo reduces gastos? | Reserved Instances, Spot, S3 lifecycle, right-sizing |
+
+<Callout type="warn" title="El Reto Final de Diseño">
+Al terminar los 4 pilares, enfrentarás el **Ultimate Design Challenge**: un escenario complejo que combina todos los pilares en una sola arquitectura. Es la mejor preparación para las preguntas de escenario del examen real.
+</Callout>
+
+## Flujo Recomendado
+
+1. **Mock Exam Inicial** — Evalúa tu nivel actual antes de empezar
+2. **Mega-Sección 1** — Estudia cada categoría de servicios + quiz al final de cada una
+3. **Mega-Sección 2** — Diseño arquitectónico con los 4 pilares del WAF
+4. **Ultimate Design Challenge** — Caso integrador de todos los pilares
+5. **Mock Exam Final** — Mide tu progreso y preparación para el examen real
+
+<Callout type="success" title="Resumen">
+- **2 instructores** especializados: Sanjeev (servicios) y Michael (diseño)
+- **6 modalidades** de aprendizaje: labs, clases, demos, quizzes, gamificación, mock exams
+- **9 categorías** de servicios AWS + **4 pilares** de diseño
+- Curso **autocontenido**: no necesitas recursos externos
+- Termina con un **reto de diseño integrador** que simula escenarios reales del examen
+</Callout>

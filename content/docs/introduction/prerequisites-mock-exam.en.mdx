@@ -3,29 +3,65 @@ title: "Prerequisites: Cloud Practitioner Mock Exam"
 description: "Assess whether you have the required level before starting the SAA course."
 ---
 
-# Prerequisites: Are You Ready?
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## Why This Matters
 
-The **Solutions Architect Associate** course assumes you have knowledge equivalent to the **AWS Cloud Practitioner** certification. Without that foundation, you will struggle significantly.
+The **Solutions Architect Associate (SAA)** course assumes you already have knowledge equivalent to the **AWS Cloud Practitioner (CCP)** certification. This means you should understand basic concepts like:
 
-## The Optional Mock Exam
-
-- A **link to a Cloud Practitioner mock exam** is provided in the course.
-- It is **optional**, but highly recommended if you don't hold that certification.
-- It helps you determine if you're ready to begin this course.
-
-## Decision Criteria
-
-| Score | Recommendation |
+| Concept | Example |
 |---|---|
-| **≥ 70** | ✅ You have sufficient foundation — continue with this course |
-| **< 70** | ⚠️ It is highly recommended to take the Cloud Practitioner course first |
+| **Regions and AZs** | Know what us-east-1 is, what an Availability Zone is |
+| **Basic EC2** | What an instance is, instance types, AMIs |
+| **Basic S3** | What a bucket is, objects, basic permissions |
+| **Basic IAM** | Users, groups, policies, roles |
+| **Pricing model** | Free Tier, On-Demand, Reserved |
 
-> It is **not mandatory** to hold the certification, but without the baseline knowledge this course will be very difficult.
+<Callout type="warn" title="Without this foundation, the course will be very difficult">
+It's **not mandatory** to hold the CCP certification, but if you don't understand these basic concepts, this course will move too fast and you'll feel lost.
+</Callout>
 
-## Next Steps
+## The Cloud Practitioner Mock Exam
 
-1. Take the Cloud Practitioner mock exam.
-2. If you score 70+: keep going!
-3. If you don't pass: go back and take the [KodeKloud Cloud Practitioner course](https://kodekloud.com) then return here.
+The course includes a **Cloud Practitioner mock exam** as a checkpoint. It's **optional but highly recommended** if you don't hold the certification.
+
+| Aspect | Detail |
+|---|---|
+| **Format** | CCP-style multiple choice questions |
+| **Purpose** | Verify you have the necessary foundation |
+| **Required** | No, but highly recommended |
+| **Passing criterion** | **≥70%** |
+
+## Interpreting Your Score
+
+| Score | Result | Recommended Action |
+|---|---|---|
+| **≥70%** | **Passed** — you have sufficient foundation | Continue with the SAA course |
+| **50–69%** | **Borderline** — partial knowledge | You can continue, but consider reviewing concepts you missed |
+| **&lt;50%** | **Insufficient** — needs reinforcement | Take the Cloud Practitioner course first |
+
+<Callout type="info" title="70% is your decision line">
+If you score **70% or higher**, you have enough foundation to continue. If you're below that, it's not a defeat — it simply means you need to build the foundation first with the Cloud Practitioner course.
+</Callout>
+
+## Decision Flow
+
+| Have CCP? | Took mock exam? | Score | → Action |
+|---|---|---|---|
+| **Yes** (certification passed) | Not needed | — | Continue with SAA |
+| **No**, but have AWS experience | **Yes** | ≥70% | Continue with SAA |
+| **No**, but have AWS experience | **Yes** | &lt;70% | Take the CCP course first |
+| **No**, no experience | **Yes** | Any | Take the CCP course first |
+| **No**, no experience | **No** | — | Take the CCP course first |
+
+<Callout type="idea" title="Same instructors for CCP">
+**Sanjeev Thiyagarajan** and **Michael Forrester** also teach the Cloud Practitioner course at KodeKloud. The transition from CCP to SAA will be natural and consistent.
+</Callout>
+
+<Callout type="success" title="Summary">
+- The SAA course requires **Cloud Practitioner level** as a foundation
+- Take the **CCP mock exam** included in the course to verify your level
+- **≥70%** = continue with SAA | **&lt;70%** = take the CCP course first
+- Holding the certification isn't mandatory, but the **equivalent knowledge** is
+- If you need CCP, the **same instructors** teach that course
+</Callout>

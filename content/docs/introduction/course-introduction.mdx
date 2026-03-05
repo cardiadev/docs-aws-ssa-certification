@@ -3,59 +3,105 @@ title: "Introducción al Curso"
 description: "Estructura, objetivos y estrategias de estudio para el curso AWS SAA."
 ---
 
-# Introducción al Curso
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## Objetivos del Curso
 
-El objetivo principal es enseñarte a diseñar en AWS con los cuatro pilares:
+El objetivo principal de este curso es enseñarte a **diseñar arquitecturas en AWS** aplicando los cuatro pilares del Well-Architected Framework. Al finalizar, deberás ser capaz de responder preguntas como:
 
-- **Diseñar de forma segura** — ¿Cómo mejoro la seguridad de instancias EC2?
-- **Diseñar de forma resiliente** — ¿Cómo mejoro la resiliencia de Direct Connect?
-- **Diseñar para el rendimiento** — ¿Cómo optimizo el rendimiento de DynamoDB?
-- **Diseñar con optimización de costos** — ¿Cómo reduzco gastos sin perder funcionalidad?
+| Pilar | Pregunta Típica del Examen |
+|---|---|
+| **Seguridad** | ¿Cómo mejoro la seguridad de instancias EC2 en una VPC pública? |
+| **Fiabilidad** | ¿Cómo mejoro la resiliencia de una conexión Direct Connect? |
+| **Rendimiento** | ¿Cómo optimizo el rendimiento de lecturas en DynamoDB? |
+| **Optimización de Costos** | ¿Cómo reduzco gastos sin perder funcionalidad? |
 
-## Quién es este Curso
+## Prerrequisitos
 
-- Diseñado para personas con conocimiento a nivel de **Cloud Practitioner**.
-- Asume que tienes experiencia relevante en producción **o** la certificación Cloud Practitioner.
-- Si no puedes aprobar la evaluación de Cloud Practitioner, **regresa y completa ese curso primero**.
+<Callout type="warn" title="Requisito: nivel Cloud Practitioner">
+Este curso asume que tienes conocimiento a nivel de **Cloud Practitioner (CCP)**. Esto puede ser a través de:
+- La **certificación CCP** aprobada, o
+- **Experiencia relevante** trabajando con AWS en producción
 
-> 💡 Sanjeev Thiyagarajan y Michael Forrester también enseñan el curso de Cloud Practitioner.
+Si no puedes aprobar la evaluación inicial de Cloud Practitioner que encontrarás en este curso, **regresa y completa el curso de CCP primero**.
+</Callout>
+
+| ¿Tienes esto? | Recomendación |
+|---|---|
+| Certificación CCP aprobada | Continúa directamente con SAA |
+| Experiencia práctica con AWS en producción | Intenta el mock exam de CCP; si pasas (≥70%), continúa |
+| Ninguno de los anteriores | Toma el curso de Cloud Practitioner primero |
+
+<Callout type="info" title="Mismos instructores">
+**Sanjeev Thiyagarajan** y **Michael Forrester** también enseñan el curso de Cloud Practitioner en KodeKloud. Si necesitas tomarlo primero, la experiencia será consistente.
+</Callout>
 
 ## Estructura del Curso
 
+El curso está dividido en **2 mega-secciones** principales, más evaluaciones al inicio y al final:
+
 ### Mega-Sección 1: Conoce tus Servicios
-Cubre ~100–150 servicios de AWS distribuidos en estas categorías:
-- Networking, Storage, Compute, Database
-- Application Integration, Data & ML
-- Migration & Transfer, Management & Governance, Security
-- **Cada sección** termina con un quiz de repaso.
+
+Instructor: **Sanjeev Thiyagarajan**
+
+Cubre aproximadamente **100-150 servicios de AWS** organizados en 9 categorías. Cada categoría incluye clases teóricas, demos prácticas y un **quiz de repaso** al final.
+
+| # | Categoría | Ejemplo de Servicios |
+|---|---|---|
+| 1 | Networking | VPC, Subnets, Route Tables, NAT Gateway |
+| 2 | Storage | S3, EBS, EFS, FSx |
+| 3 | Compute | EC2, Lambda, ECS, EKS |
+| 4 | Database | RDS, Aurora, DynamoDB, ElastiCache |
+| 5 | Application Integration | SQS, SNS, Step Functions, EventBridge |
+| 6 | Data & ML | Kinesis, Glue, Athena, SageMaker |
+| 7 | Migration & Transfer | DMS, Snow Family, DataSync |
+| 8 | Management & Governance | CloudWatch, CloudTrail, Config |
+| 9 | Security | IAM, KMS, WAF, Shield |
 
 ### Mega-Sección 2: Diseño para X
-Preguntas basadas en escenarios donde debes aplicar los cuatro pilares a los servicios que ya aprendiste:
 
-| Sección | Temática |
-|---|---|
-| Diseño para Seguridad | Cómo asegurar cada servicio |
-| Diseño para Fiabilidad | Cómo hacer resiliente cada servicio |
-| Diseño para Rendimiento | Cómo optimizar el rendimiento |
-| Diseño para Costos | Cómo gestionar y reducir costos |
+Instructor: **Michael Forrester**
 
-Al final: un **Design Challenge** donde pondrás en práctica todo lo aprendido.
+Preguntas basadas en **escenarios reales** donde debes aplicar los cuatro pilares a los servicios que ya conoces:
+
+| Módulo | Temática | Lo que Aprenderás |
+|---|---|---|
+| Diseño para **Seguridad** | Cifrado, accesos, red | Proteger datos en reposo y en tránsito, políticas IAM |
+| Diseño para **Fiabilidad** | HA, DR, tolerancia a fallos | Multi-AZ, Auto Scaling, estrategias de disaster recovery |
+| Diseño para **Rendimiento** | Escalado, caching, eficiencia | CloudFront, ElastiCache, right-sizing de instancias |
+| Diseño para **Costos** | Reservas, lifecycle, spot | Reserved Instances, S3 lifecycle, Spot Instances |
+
+<Callout type="idea" title="Design Challenge">
+Al terminar los 4 módulos de diseño, enfrentarás el **Ultimate Design Challenge**: un escenario integrador que combina todos los pilares. Es tu prueba final antes del mock exam.
+</Callout>
 
 ## Evaluaciones
 
-| Tipo | Cuándo | Propósito |
-|---|---|---|
-| Mock Exam Cloud Practitioner | Al inicio (opcional) | Verificar tu nivel base |
-| Mock Exam SAA (pre) | Al inicio (opcional) | Ver dónde estás en SAA |
-| Mock Exam SAA (post) | Al final | Medir tu crecimiento |
+| Evaluación | Momento | Obligatorio | Propósito |
+|---|---|---|---|
+| Mock Exam Cloud Practitioner | Inicio | Opcional | Verificar que tienes nivel base suficiente |
+| Mock Exam SAA (pre) | Inicio | Opcional | Establecer tu línea base en SAA |
+| Quizzes por categoría | Durante | Sí | Medir comprensión por sección |
+| Ultimate Design Challenge | Final de diseño | Sí | Integrar todos los pilares |
+| Mock Exam SAA (post) | Final | Sí | Medir tu crecimiento y preparación |
 
 ## Estrategias de Estudio Recomendadas
 
-- 📓 **Toma notas** — Escribe cada servicio en su propia hoja de papel al conocerlo.
-- ⏰ **Sé consistente** — 15 min/día todos los días > 3 horas un día y ninguna la siguiente.
-- 🧪 **Practica con labs** — Usa los playgrounds y laboratorios del curso.
-- 🎯 **Protege tu tiempo** — Evita distracciones y mantente enfocado.
-- 🗺 **Crea mapas mentales** — Dibuja servicios, reescribe notas, haz conexiones.
-- ⌚ **Planifica ~8 semanas** de estudio consistente para estar listo para el examen.
+| Estrategia | Detalle | Por qué Funciona |
+|---|---|---|
+| **Toma notas por servicio** | Escribe cada servicio en su propia hoja cuando lo aprendas | La escritura manual mejora la retención a largo plazo |
+| **Sé consistente: 15 min/día** | Estudia un poco cada día en lugar de maratones esporádicas | El aprendizaje espaciado es más efectivo que el intensivo |
+| **Practica con labs y playgrounds** | Usa los entornos del curso para experimentar | La práctica activa consolida más que la teoría pasiva |
+| **Protege tu tiempo de estudio** | Bloquea un horario fijo y elimina distracciones | La concentración profunda acelera la comprensión |
+
+<Callout type="warn" title="Planifica ~8 semanas de estudio">
+Con **15 minutos diarios consistentes**, la mayoría de estudiantes están listos para el examen en aproximadamente **8 semanas**. Si estudias más tiempo por día, puedes acortar este periodo, pero la consistencia es más importante que la intensidad.
+</Callout>
+
+<Callout type="success" title="Resumen">
+- **Prerrequisito**: nivel Cloud Practitioner (certificación o experiencia equivalente)
+- **2 mega-secciones**: Servicios (Sanjeev) + Diseño (Michael)
+- **~100-150 servicios** en 9 categorías con quizzes por sección
+- **4 pilares de diseño** + Ultimate Design Challenge
+- **Clave del éxito**: consistencia diaria (15 min) durante ~8 semanas
+</Callout>

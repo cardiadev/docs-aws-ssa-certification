@@ -7,7 +7,7 @@ const { provider } = defineI18nUI(i18n, {
   translations: {
     es: {
       displayName: 'Español',
-      search: 'Buscar documentación...',
+      search: 'Buscar...',
     },
     en: {
       displayName: 'English',

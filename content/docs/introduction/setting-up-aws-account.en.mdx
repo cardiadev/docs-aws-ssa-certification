@@ -1,37 +1,90 @@
 ---
 title: "Setting Up Your Own AWS Account"
-description: "Step-by-step guide to creating and configuring your AWS account."
+description: "Step-by-step guide to creating and configuring your AWS account safely."
 ---
 
-# Setting Up Your Own AWS Account
+import { Callout } from 'fumadocs-ui/components/callout';
 
 ## Why You Need a Personal Account
 
-Playgrounds cover most exam services, but not all. A personal account gives you full access to explore **any service without restrictions**.
+**KodeKloud Playgrounds** cover most exam services, but **not all of them**. A personal account gives you full access to explore any service without restrictions.
 
-## Rule #1 (Critical): Don't Leave Anything Running
+| Environment | Services Available | Cost | Restrictions |
+|---|---|---|---|
+| **KodeKloud Playgrounds** | Most (EC2, RDS, S3, etc.) | Free (included with course) | Some services unavailable, 3h sessions |
+| **Personal AWS Account** | All services | Free Tier + potential cost | None — full access |
 
-> **⚠️ Always stop or delete resources when you finish a study session.**
+<Callout type="error" title="Rule #1: DON'T leave anything running">
+This is the most important rule in the course:
 
-This includes: NAT Gateways, Elastic IPs, storage volumes, EC2 instances, etc. Forgetting to clean up is the most common cause of unexpected charges.
+**Always stop or delete resources when you finish each study session.**
 
-## Email Tip
+Resources that generate charges if left on:
+- **NAT Gateways** (~$0.045/hour = ~$32/month)
+- **Unassociated Elastic IPs** (~$3.60/month)
+- **EC2 Instances** (varies by type)
+- **Undeleted EBS Volumes**
+- **Active Load Balancers**
 
-If you use Gmail or Yahoo, use the **"+" alias trick**:
-- `yourname+aws1@gmail.com` → creates a unique AWS account that still arrives in your main inbox.
+Forgetting to shut down resources is the **#1 cause of unexpected charges** for students.
+</Callout>
+
+## Email Alias Trick
+
+If you use **Gmail** or **Yahoo**, you can create multiple AWS accounts with a single email using the **"+" alias trick**:
+
+| Email Used | Arrives At | AWS Account |
+|---|---|---|
+| `yourname+aws1@gmail.com` | `yourname@gmail.com` | AWS Account #1 |
+| `yourname+aws2@gmail.com` | `yourname@gmail.com` | AWS Account #2 (if needed) |
+
+<Callout type="idea" title="Why is this useful?">
+Each **+alias** address counts as a unique email for AWS, but they all land in your **same inbox**. Useful if you need multiple Free Tier accounts.
+</Callout>
 
 ## Signup Process
 
-1. Go to AWS and click **"Create a free account"**.
-2. Provide an email address, password, and account name.
-3. Enter a **valid credit card** (required even on the free tier).
-4. Verify your identity by phone.
-5. Select the **Free Support Plan (Basic Support)** — no paid support needed as a student.
+| Step | Action | Detail |
+|---|---|---|
+| 1 | Go to **aws.amazon.com** | Click **"Create a free account"** |
+| 2 | Account details | Email, password, and account name |
+| 3 | Contact information | Choose **"Personal"** as account type |
+| 4 | Payment method | **Valid credit card** (required even on Free Tier) |
+| 5 | Identity verification | Code via **phone or SMS** |
+| 6 | Support plan | Select **Basic Support (Free)** — no paid support needed |
 
-## After Registration
+<Callout type="info" title="Account activation">
+The account may take up to **24 hours** to fully activate across all regions. If some services don't appear immediately, wait and try again.
+</Callout>
 
-| Step | Action |
+## Post-Registration Setup (Required)
+
+After creating your account, complete these **two critical configurations** before using any services:
+
+### 1. Create an IAM User
+
+| Aspect | Detail |
 |---|---|
-| Activation | The account may take up to **24 hours** to fully activate globally |
-| Avoid Root | Create an **IAM User** with admin rights and use it for all logins |
-| AWS Budgets | Set a **$5–$10 budget alert** to be notified before incurring significant charges |
+| **Why** | The root account has unlimited permissions — using it daily is a **security risk** |
+| **What to do** | Create an IAM user with the **AdministratorAccess** policy |
+| **Result** | Use that user for all daily work; root only for account configuration |
+
+<Callout type="warn" title="Never use the root account for daily work">
+This is a **security best practice** that also comes up as a frequent exam question on the SAA. Always use an **IAM user with appropriate permissions**.
+</Callout>
+
+### 2. Configure AWS Budgets
+
+| Setting | Recommended Value |
+|---|---|
+| **Monthly budget** | **$5 – $10 USD** |
+| **Alert threshold** | 80% of budget |
+| **Notification** | Via email |
+
+<Callout type="success" title="Summary">
+- Create your account at **aws.amazon.com** using the +alias email trick
+- **Rule #1**: always shut down resources when you finish each session
+- Create an **IAM user** with AdministratorAccess for daily use
+- Set up **AWS Budgets** ($5-$10) to avoid billing surprises
+- The account may take **up to 24h** to fully activate
+</Callout>
