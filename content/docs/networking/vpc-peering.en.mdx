@@ -1,6 +1,54 @@
 ---
 title: "VPC Peering"
-description: "Content coming soon."
+description: "VPC Peering — direct network connection between two VPCs for bidirectional communication."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+A **VPC Peering** is a network connection between two VPCs that allows routing traffic between them. Resources in both VPCs can communicate as if they were on the same network.
+
+## Features
+
+- Works between VPCs in the **same region**, **different regions** and **different AWS accounts**
+- **No charge** for creating the peering
+- Data transfer **within the same AZ** is free
+- Data transfer **across AZs** incurs a charge
+
+## How to Configure
+
+1. One VPC sends a **peering request** to the other VPC
+2. The owner of the second VPC **accepts** the request
+3. Configure **routes** in both route tables pointing to the peering
+
+### Route Example
+
+For VPC 1 (`10.1.0.0/16`) connected to VPC 2 (`10.2.0.0/16`):
+
+**VPC 1 route table:**
+
+| Destination | Target |
+|---|---|
+| `10.1.0.0/16` | local |
+| `10.2.0.0/16` | pcx-xxxxx (peering) |
+
+**VPC 2 route table:**
+
+| Destination | Target |
+|---|---|
+| `10.2.0.0/16` | local |
+| `10.1.0.0/16` | pcx-xxxxx (peering) |
+
+## Limitation: Not Transitive
+
+If VPC A peers with VPC B, and VPC B peers with VPC C, **VPC A CANNOT communicate with VPC C** through VPC B. This is known as **transitive peering** and is not supported.
+
+For VPC A to talk to VPC C you need a **direct peering** between them.
+
+```
+VPC A ↔ VPC B ↔ VPC C    ✗ (not transitive)
+VPC A ↔ VPC C             ✓ (direct peering)
+```
+
+<Callout type="warn">
+**For the SAA-C03 exam:** VPC Peering is NOT transitive — you need a direct peering between each pair of VPCs. No charge to create the peering but data transfer across AZs is charged. Works across regions and different accounts.
+</Callout>

@@ -1,6 +1,78 @@
 ---
 title: "Subnets"
-description: "Content coming soon."
+description: "Subnets within a VPC — public, private, IP addressing and Availability Zones."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**Subnets** are groups of IP addresses within your VPC where you deploy resources. Each subnet resides in **a single Availability Zone (AZ)**, and this is how you determine which AZ a resource is deployed into.
+
+## Key Concepts
+
+### Subnets and Availability Zones
+
+When you deploy a resource (such as an EC2 instance), you deploy it into a specific subnet. That subnet exists in a single AZ, so the resource ends up in that AZ.
+
+- **Subnet 1** in AZ `us-east-1a` → resources deployed here will be in `us-east-1a`
+- **Subnet 2** in AZ `us-east-1b` → resources here will be in `us-east-1b`
+
+### Addressing Rules
+
+- Subnets must be **within the VPC's CIDR range**
+- Block size must be between **/16** and **/28**
+- Subnets **cannot overlap** with other subnets in the same VPC (but can overlap with subnets in different VPCs)
+- By default, subnets within the same VPC **can communicate with each other** without additional configuration
+
+### Reserved IP Addresses
+
+In every subnet, **5 IP addresses are reserved** and cannot be assigned to resources:
+
+| Address | Purpose |
+|---|---|
+| First (`.0`) | Network address |
+| Second (`.1`) | VPC router |
+| Third (`.2`) | DNS server |
+| Fourth (`.3`) | Reserved by AWS for future use |
+| Last (`.255`) | Broadcast address |
+
+**Example:** in a `192.168.10.0/24` subnet, IPs `.0`, `.1`, `.2`, `.3` and `.255` are unavailable, leaving 251 usable IPs.
+
+## Public vs Private Subnets
+
+The difference between a public and private subnet depends on whether devices on the internet can reach resources deployed in it.
+
+| Question | Subnet |
+|---|---|
+| Do internet users need to access the resource? | **Public** |
+| Do only other internal resources need access? | **Private** |
+
+### Architecture Example
+
+A very common pattern:
+
+1. **Web server** → **public** subnet (users need access from the internet)
+2. **Database** → **private** subnet (only the web server needs to communicate with it)
+
+Users connect to the web server on the public subnet, and the web server communicates internally with the database on the private subnet. This protects the database from direct internet access.
+
+### Another Use Case: Data Center Extension
+
+If you use AWS as an extension of your private data center, you can deploy all resources in private subnets and connect your data center to AWS via a **VPN**. You don't need public subnets because the resources don't require direct internet access.
+
+## Configuration
+
+When creating a subnet you can:
+
+- Assign it to a **specific AZ**
+- Define an **IPv4 CIDR block** within the VPC range
+- Optionally define an **IPv6 /64 CIDR block**
+- Enable **auto-assign public IP** (required for public subnets)
+- Configure subnets to use **IPv6 only** without IPv4 addresses
+
+<Callout type="info">
+**What determines whether a subnet is public or private are the gateways:** a subnet with a route to an Internet Gateway is public; without that route, it is private. The auto-assign public IP setting is complementary, not the determining factor.
+</Callout>
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Remember that subnets cannot overlap within the same VPC, that 5 IPs are reserved by AWS in each subnet, and that subnets reside in a single AZ. If you need high availability, deploy resources in subnets across multiple AZs.
+</Callout>

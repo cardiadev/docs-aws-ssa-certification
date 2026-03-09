@@ -1,6 +1,46 @@
 ---
 title: "Global Accelerator"
-description: "Content coming soon."
+description: "AWS Global Accelerator — improve global performance by routing traffic through the AWS backbone with Anycast IPs."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**AWS Global Accelerator** improves application performance by routing user traffic through the **AWS backbone** instead of the public internet. Users connect to the nearest edge location and from there traffic travels through AWS's private network to your application.
+
+## The Problem it Solves
+
+When a user sends a request to your application, traffic travels through the internet across multiple providers (ISPs). This path is:
+
+- **Unpredictable** — does not always take the most efficient route
+- **Unstable** — subject to congestion and variability
+- **Slow** — higher latency compared to a dedicated network
+
+## How it Works
+
+1. The user sends a request
+2. Connects to the **nearest Global Accelerator edge location**
+3. From the edge location, traffic travels through the **AWS backbone** (private network)
+4. Reaches your application in the target region
+
+```
+User → Edge Location (nearest) → AWS Backbone → Application (region)
+```
+
+The AWS backbone offers faster, more secure and more efficient connections than the public internet.
+
+## CloudFront vs Global Accelerator
+
+| Feature | CloudFront | Global Accelerator |
+|---|---|---|
+| **Purpose** | **Cache content** at edge locations | **Route traffic** to the AWS backbone |
+| **Edge locations** | Store cached objects | Entry point to the AWS network |
+| **Content type** | Static (images, videos, HTML) | Any application traffic |
+| **Improves** | Download latency | Connection latency to the app |
+
+<Callout type="info">
+**Do not confuse:** CloudFront caches content at the edge; Global Accelerator routes users to the AWS backbone as fast as possible. Both use edge locations but for different purposes.
+</Callout>
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Global Accelerator uses edge locations to route traffic to the AWS backbone, not to cache content. It improves global performance by avoiding the public internet. Differentiate from CloudFront: CloudFront caches, Global Accelerator routes.
+</Callout>

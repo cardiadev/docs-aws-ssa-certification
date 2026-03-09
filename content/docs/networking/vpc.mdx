@@ -1,6 +1,73 @@
 ---
 title: "Amazon VPC"
-description: "Virtual Private Cloud — overview y conceptos clave."
+description: "Virtual Private Cloud — redes virtuales aisladas en AWS, CIDR, VPC por defecto vs personalizada."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Una **Virtual Private Cloud (VPC)** es un segmento de red aislado y seguro dentro de AWS. Las VPCs permiten separar tus recursos de los de otros clientes y aislar diferentes aplicaciones dentro de una misma cuenta.
+
+Con una VPC obtienes control total sobre:
+
+- **Aislamiento de red** — los recursos dentro de una VPC no pueden comunicarse con otra VPC por defecto
+- **Firewalls** — Security Groups y NACLs para controlar tráfico entrante y saliente
+- **Gateways** — personalizar el tráfico que entra y sale de tu VPC
+- **Direccionamiento IP** — definir el rango de IPs con bloques CIDR
+
+## Conceptos Clave
+
+### Región y Aislamiento
+
+Las VPCs son **específicas de una sola región**. Cuando creas una VPC, debes especificar en qué región existirá. Una VPC no puede abarcar múltiples regiones.
+
+Por defecto, los recursos desplegados en una VPC **no pueden comunicarse** con recursos en otra VPC. Si necesitas comunicación entre VPCs o acceso desde internet, debes habilitarlo explícitamente.
+
+### Bloques CIDR
+
+Cada VPC tiene un rango de direcciones IP asignado mediante un **bloque CIDR** (Classless Inter-Domain Routing):
+
+- Define las IPs disponibles para los recursos dentro de la VPC
+- Puede tener un tamaño entre **/16** (65,536 direcciones) y **/28** (16 direcciones)
+- Puedes agregar opcionalmente un **bloque CIDR IPv4 secundario**
+- Puedes habilitar **bloques CIDR IPv6** (/56) — hasta 5 bloques (límite ajustable)
+
+**Ejemplo:** si creas una VPC con CIDR `10.0.0.0/16`, las direcciones disponibles van de `10.0.0.0` a `10.0.255.255`.
+
+## VPC por Defecto vs VPC Personalizada
+
+| Característica | VPC por Defecto | VPC Personalizada |
+|---|---|---|
+| **Creación** | Automática por AWS en cada región | Creada manualmente por ti |
+| **CIDR block** | Siempre `172.31.0.0/16` | Tú lo defines |
+| **Subnets** | Una subnet /20 por cada AZ | Tú las configuras |
+| **Internet access** | Habilitado por defecto | Debes configurarlo |
+| **Internet Gateway** | Creado y adjuntado automáticamente | Debes crearlo y adjuntarlo |
+| **Ruta por defecto** | `0.0.0.0/0` → Internet Gateway | Debes crearla |
+| **Security Group** | Permite tráfico saliente | Tú defines las reglas |
+| **NACL** | Permite todo el tráfico (inbound y outbound) | Tú defines las reglas |
+
+### Configuración de la VPC por Defecto
+
+Cuando creas una cuenta AWS, obtienes **una VPC por defecto en cada región** con esta configuración:
+
+1. CIDR block: `172.31.0.0/16` (65,536 direcciones)
+2. Una **subnet por defecto** en cada zona de disponibilidad (AZ) con CIDR /20
+3. Un **Internet Gateway** adjunto con ruta `0.0.0.0/0`
+4. Un **Security Group** por defecto (permite tráfico saliente)
+5. Una **NACL** por defecto (permite todo el tráfico)
+6. Las subnets asignan automáticamente una **IP pública** a las instancias
+
+### Crear una VPC Personalizada
+
+Para crear una VPC personalizada:
+
+1. Selecciona la **región** donde desplegarás la VPC
+2. Define el **bloque CIDR IPv4** (ej: `10.0.0.0/16`)
+3. Opcionalmente habilita un **bloque CIDR IPv6** (Amazon puede proporcionar uno)
+4. Selecciona el tipo de **tenancy** (default o dedicated)
+
+AWS creará automáticamente una **route table** y una **NACL** por defecto para tu nueva VPC, pero **no** creará subnets, Internet Gateways ni rutas hacia internet — todo eso debes configurarlo tú.
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Recuerda que las VPCs son específicas de una región y no pueden abarcar múltiples regiones. El CIDR de la VPC por defecto siempre es `172.31.0.0/16`. Si una pregunta menciona comunicación entre VPCs, recuerda que por defecto están completamente aisladas.
+</Callout>

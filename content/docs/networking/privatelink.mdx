@@ -1,6 +1,32 @@
 ---
 title: "PrivateLink"
-description: "Acceso privado a servicios AWS."
+description: "AWS PrivateLink — acceso privado a servicios AWS y de terceros sin pasar por internet."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+**AWS PrivateLink** (también conocido como VPC Endpoints) permite que los recursos en tu VPC accedan a servicios públicos de AWS (como S3, CloudWatch) y a servicios en otras VPCs **sin necesidad de pasar por internet**.
+
+## El Problema que Resuelve
+
+Si tienes una instancia EC2 en una subnet privada que necesita acceder a S3, normalmente necesitarías un Internet Gateway o NAT Gateway para darle acceso a internet. Esto expone tu recurso innecesariamente.
+
+**PrivateLink** elimina esta necesidad: proporciona una conexión directa y privada a los servicios de AWS a través de la red interna de AWS.
+
+## Casos de Uso
+
+- **Acceso a servicios AWS** — conectar a S3, CloudWatch, DynamoDB, etc. desde subnets privadas sin internet
+- **Acceso a servicios en otras VPCs** — conectar a servicios de terceros o de otras cuentas usando IPs privadas, como si estuvieran en tu propia VPC
+- **Servicios de terceros** — acceder a servicios SaaS que soporten PrivateLink sin exponer tu red
+
+## Cómo Funciona
+
+Los **VPC Endpoints** facilitan la comunicación entre tu VPC y los servicios:
+
+- El tráfico nunca sale de la red de AWS
+- Los servicios aparecen como si estuvieran directamente conectados a tu VPC
+- Se usan **direcciones IP privadas** para la comunicación
+
+<Callout type="warn">
+**Para el examen SAA-C03:** PrivateLink permite acceder a servicios AWS (S3, CloudWatch, etc.) desde subnets privadas sin necesidad de Internet Gateway ni NAT Gateway. El tráfico permanece dentro de la red de AWS. También permite conectar a servicios en otras VPCs usando IPs privadas.
+</Callout>

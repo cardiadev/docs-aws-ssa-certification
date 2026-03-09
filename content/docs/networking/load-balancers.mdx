@@ -1,6 +1,69 @@
 ---
 title: "Load Balancers"
-description: "ALB, NLB, GLB y Classic Load Balancer."
+description: "Elastic Load Balancing — ALB, NLB, CLB, listeners, target groups y cross-zone load balancing."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Los **Elastic Load Balancers (ELB)** distribuyen automáticamente el tráfico entrante entre múltiples destinos (EC2, contenedores, Lambda) en varias zonas de disponibilidad.
+
+## Tipos de Load Balancers
+
+| Tipo | Capa | Protocolo | Notas |
+|---|---|---|---|
+| **Application LB (ALB)** | Capa 7 (aplicación) | HTTP / HTTPS | Enruta por headers, paths, hosts |
+| **Network LB (NLB)** | Capa 4 (transporte) | TCP / UDP / TLS | Mayor rendimiento, menor latencia |
+| **Classic LB (CLB)** | Capa 4 y 7 | HTTP / TCP | **Obsoleto** — evitar en nuevos proyectos |
+
+### ALB vs NLB
+
+| Característica | ALB | NLB |
+|---|---|---|
+| **Enrutamiento** | Por contenido HTTP (path, host, headers) | Por puerto/protocolo |
+| **Rendimiento** | Bueno | Más rápido que ALB |
+| **Terminación SSL** | Sí (siempre termina HTTP/HTTPS) | Opcional (puede pasar tráfico sin terminar) |
+| **Tráfico no-HTTP** | No | Sí |
+
+## Público vs Privado
+
+- **Público** — desplegado en subnets públicas, accesible desde internet (ej: web servers)
+- **Privado** — desplegado en subnets privadas, solo accesible internamente (ej: capa de base de datos)
+
+### Arquitectura Multi-capa
+
+Un patrón común:
+
+1. **Load Balancer público** → distribuye tráfico a instancias de la capa API (subnet pública)
+2. **Load Balancer privado** → distribuye tráfico a instancias de la capa de base de datos (subnet privada)
+
+La capa API envía solicitudes al LB privado de la capa de datos. Los usuarios nunca acceden directamente a la base de datos.
+
+## Listeners y Target Groups
+
+### Listeners
+
+Un **listener** verifica solicitudes de conexión usando el protocolo y puerto que configures. Define reglas para determinar cómo enrutar el tráfico.
+
+Ejemplos de reglas:
+- Solicitudes a `app1.com` → Target Group A
+- Solicitudes a `app2.com/auth` → Target Group B
+- Solicitudes a `app2.com/cart` → Target Group C
+
+### Target Groups
+
+Un **target group** enruta solicitudes a uno o más destinos registrados:
+
+- Instancias **EC2**
+- Contenedores **ECS**
+- Funciones **Lambda**
+- **Direcciones IP**
+
+Cada target group tiene **health checks** configurados para detectar destinos no saludables y dejar de enviarles tráfico.
+
+## Cross-Zone Load Balancing
+
+Por defecto, cada nodo del load balancer distribuye tráfico solo a los destinos de su propia AZ. Con **cross-zone load balancing** habilitado, el tráfico se distribuye **equitativamente entre todas las instancias en todas las AZs**.
+
+<Callout type="warn">
+**Para el examen SAA-C03:** ALB opera en capa 7 y enruta por contenido HTTP; NLB opera en capa 4 y es más rápido. CLB es obsoleto. Los listeners definen reglas de enrutamiento y los target groups agrupan destinos. Cross-zone load balancing distribuye tráfico equitativamente entre AZs. ALB siempre termina HTTP/HTTPS; NLB puede pasar tráfico sin terminar.
+</Callout>

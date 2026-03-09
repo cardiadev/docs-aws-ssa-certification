@@ -1,6 +1,34 @@
 ---
 title: "Elastic IP"
-description: "Direcciones IP estáticas en AWS."
+description: "Direcciones IP públicas estáticas — asignación, asociación y costos."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Las **Elastic IPs** son direcciones IPv4 estáticas que puedes asignar a tu cuenta y asociar con instancias EC2. A diferencia de las IPs públicas normales que cambian al reiniciar, las Elastic IPs **permanecen fijas**.
+
+## El Problema que Resuelven
+
+Cuando una EC2 en subnet pública recibe una IP pública, esa IP **no está reservada**. Si la instancia se reinicia, puede recibir una IP diferente — causando problemas para usuarios, DNS y listas blancas de IPs.
+
+## Cómo Funcionan
+
+1. **Asignar** (allocate) una Elastic IP a tu cuenta — queda reservada para ti
+2. **Asociar** (associate) la Elastic IP a una instancia EC2 o interfaz de red
+3. La instancia mantiene esa IP fija incluso tras reinicios
+
+Puedes **desasociar** una Elastic IP de una instancia y **reasociarla** a otra — útil para migrar tráfico durante mantenimiento.
+
+## Características
+
+| Característica | Detalle |
+|---|---|
+| **Tipo** | IPv4 estática |
+| **Alcance** | Específica de una **región** |
+| **Origen** | Pool de Amazon o pool propio (BYOIP) |
+| **Costo** | Gratis si asociada a instancia en ejecución |
+| **Costo adicional** | Cobro por hora si NO está asociada o si tienes más de una por instancia |
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Las Elastic IPs son regionales y no se pueden mover entre regiones. Las IPs públicas normales cambian al reiniciar; las Elastic IPs no. Se cobra por Elastic IPs no asociadas — siempre asócialas o libéralas.
+</Callout>

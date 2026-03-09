@@ -1,6 +1,55 @@
 ---
 title: "Routing in VPC"
-description: "Content coming soon."
+description: "Route tables, local routes and how traffic flows inside a VPC."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+Every VPC has a **VPC router** responsible for routing traffic between subnets and in/out of the VPC. The router has an interface in every subnet, reachable at the **network + 1** address (e.g. if the subnet is `192.168.1.0/24`, the router is at `192.168.1.1`).
+
+## Route Tables
+
+A **route table** is a set of rules the router uses to forward network traffic. Each rule is called a **route**.
+
+### How Routing Works
+
+1. A packet leaves a subnet
+2. The router examines the packet's **destination IP**
+3. It finds a matching route by checking the **Destination** column
+4. It forwards the packet to the resource specified in the **Target** column
+
+### Longest Prefix Match
+
+If a packet matches more than one route, the router selects the route with the **longest prefix** (most specific). For example, if routes exist for `/8` and `/16`, the `/16` wins because it is more specific.
+
+### Local Route
+
+All route tables have **at least one default route**: the **local route**.
+
+| Destination | Target |
+|---|---|
+| `10.16.0.0/16` (VPC CIDR) | `local` |
+
+This route allows any resource within the VPC to communicate with any other resource in the same VPC. If the VPC has IPv6 enabled, there will also be a local route for the IPv6 CIDR block.
+
+The local route **cannot be deleted or modified**.
+
+## Subnet and Route Table Association
+
+- Each subnet is associated with **exactly one** route table
+- Multiple subnets can share the **same** route table
+- When you create a VPC, a **default route table** is automatically created
+- New subnets are automatically associated with the default route table until you change them
+
+### Why Have Multiple Route Tables?
+
+A very common pattern is to have:
+
+- A **public route table** — with a default route (`0.0.0.0/0`) pointing to the Internet Gateway
+- A **private route table** — with a default route pointing to a NAT Gateway (or no default route)
+
+This allows public subnets to have direct internet access while private subnets can only reach the internet through the NAT Gateway.
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Remember that the local route always exists and cannot be deleted. When routes conflict, the longest prefix wins. Each subnet belongs to exactly one route table, but a route table can have multiple subnets.
+</Callout>

@@ -1,6 +1,48 @@
 ---
 title: "Transit Gateway"
-description: "Content coming soon."
+description: "AWS Transit Gateway — centralized hub for connecting multiple VPCs and on-premises networks with transitive routing."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**AWS Transit Gateway** is a service that acts as a **centralized router** to connect multiple VPCs and on-premises networks. It eliminates the need to create a full mesh of VPC Peerings, drastically simplifying network architecture.
+
+## The Problem it Solves
+
+With VPC Peering, if you have 4 VPCs that need to communicate, you need **6 peerings** (full mesh). As you grow, the number of peerings scales exponentially. You would also need a separate VPN connection from on-premises to each VPC.
+
+Transit Gateway solves this: each VPC only needs **one connection** to the Transit Gateway, which handles routing between all of them.
+
+## How it Works
+
+1. Deploy a **Transit Gateway**
+2. Connect each VPC to the Transit Gateway
+3. The Transit Gateway acts as a router and enables **transitive routing** between all connected VPCs
+
+```
+VPC A ─┐
+VPC B ─┤── Transit Gateway ──┤── VPN / Direct Connect → On-premises
+VPC C ─┤
+VPC D ─┘
+```
+
+### Subnet Requirement
+
+You must specify **one subnet per AZ** in each VPC you want to connect to the Transit Gateway. These dedicated subnets allow the TGW to route traffic in those AZs.
+
+## On-Premises Connectivity
+
+- You can terminate a **VPN** directly on the Transit Gateway (instead of needing one VPN per VPC)
+- Also supports **Direct Connect** for on-premises connection
+- Reduces multiple VPN connections down to **one**
+
+## Transit Gateway Peering
+
+Transit Gateways can peer with other Transit Gateways in:
+
+- **Different regions**
+- **Different AWS accounts**
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Transit Gateway enables transitive routing (unlike VPC Peering). It simplifies connectivity between multiple VPCs and on-premises. You need one subnet per AZ for the TGW. It can peer with TGWs in other regions and accounts.
+</Callout>

@@ -1,6 +1,48 @@
 ---
 title: "VPN"
-description: "Conexiones VPN en AWS."
+description: "Virtual Private Network — conexión segura entre tu data center y AWS mediante túneles IPsec."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Una **VPN (Virtual Private Network)** permite conectar de forma segura tu red on-premises con tus recursos privados en AWS. El tráfico se envía a través de un **túnel IPsec** cifrado que viaja por internet.
+
+## Componentes
+
+| Componente | Ubicación | Función |
+|---|---|---|
+| **VPN Gateway** (VGW) | Lado AWS | Termina el túnel VPN en AWS; se adjunta a una VPC |
+| **Customer Gateway** (CGW) | Lado on-premises | Termina el túnel VPN en tu red; requiere IP pública |
+| **Túnel IPsec** | Internet | Conexión cifrada entre VGW y CGW |
+
+## Cómo Funciona
+
+1. Despliegas un **VPN Gateway** y lo adjuntas a tu VPC
+2. Configuras un **Customer Gateway** en tu red on-premises con una IP pública
+3. Se establece un **túnel IPsec** cifrado entre ambos endpoints a través de internet
+
+## Enrutamiento
+
+Dos opciones para que AWS conozca las rutas de tu red on-premises:
+
+- **Estático** — defines manualmente una ruta en la route table de AWS (ej: `192.168.0.0/16` → VPN Gateway)
+- **Dinámico** — usas **BGP** para intercambiar rutas automáticamente entre el VGW y el CGW
+
+## Límites y Rendimiento
+
+| Métrica | Valor |
+|---|---|
+| **Ancho de banda máximo** por túnel | 1.25 Gbps |
+| **Paquetes por segundo** | 140,000 |
+| **MTU** | 1,446 bytes |
+
+Puedes usar **ECMP** (Equal-Cost Multi-Path) con múltiples túneles VPN para aumentar el ancho de banda total.
+
+## Pricing
+
+- Cobro por **hora de conexión VPN** disponible
+- Cobro por **datos de salida** (egress) desde AWS
+
+<Callout type="warn">
+**Para el examen SAA-C03:** El VPN Gateway está en el lado AWS y el Customer Gateway en el lado on-premises. El tráfico viaja cifrado por internet (a diferencia de Direct Connect). El ancho de banda máximo por túnel es 1.25 Gbps. Puedes usar enrutamiento estático o dinámico (BGP).
+</Callout>

@@ -1,6 +1,71 @@
 ---
 title: "CloudFront"
-description: "CDN global de AWS."
+description: "Amazon CloudFront — CDN global para distribución de contenido con edge locations, TTL e invalidación de caché."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+**Amazon CloudFront** es un servicio de **Content Delivery Network (CDN)** que distribuye contenido a través de una red mundial de data centers llamados **edge locations**. Acerca el contenido a los usuarios finales para reducir la latencia.
+
+## Conceptos Clave
+
+### Origin
+
+El **origin** es la fuente original del contenido que CloudFront distribuye. Puede ser:
+
+- Un **bucket S3**
+- Un **servidor web** (EC2, on-premises, etc.)
+- Un **Application Load Balancer**
+
+### Distribution
+
+Una **distribution** es la unidad de configuración de CloudFront. Al crearla:
+
+1. Especificas dónde están los archivos de origen (origin)
+2. CloudFront genera un **nombre de dominio** (ej: `xyz.cloudfront.net`)
+3. La configuración se envía a todas las edge locations
+
+### Edge Locations
+
+Las **edge locations** son los data centers distribuidos globalmente donde se almacena el contenido en caché:
+
+- Si el contenido está en caché → respuesta inmediata al usuario
+- Si no está en caché → la edge location solicita el contenido al origin, lo almacena en caché y lo envía al usuario
+
+## Time to Live (TTL)
+
+El **TTL** determina cuánto tiempo permanece válido el contenido en caché antes de expirar.
+
+| Configuración | Valor |
+|---|---|
+| **TTL por defecto** | 24 horas |
+| **TTL personalizado** | Configurable por objeto o distribución |
+
+Después de que el TTL expira, la edge location debe solicitar el contenido nuevamente al origin.
+
+## Cache Invalidation
+
+La **invalidación de caché** permite limpiar manualmente el contenido cacheado antes de que expire el TTL.
+
+Útil cuando actualizas archivos en el origin y necesitas que los usuarios reciban la nueva versión inmediatamente.
+
+Opciones de invalidación:
+- `/*` — invalida **toda** la distribución
+- `/images/*` — invalida todos los objetos en una carpeta
+- `/archivo.jpg` — invalida un objeto específico
+
+## SSL/TLS y Dominios
+
+- **HTTPS habilitado por defecto** con certificado SSL `*.cloudfront.net`
+- Para **dominios personalizados**, usa **AWS Certificate Manager (ACM)** para crear certificados
+- CloudFront publica métricas automáticamente en **CloudWatch**
+
+## Casos de Uso
+
+- **Sitios web estáticos** — HTML, CSS, JS sin lógica del lado del servidor
+- **Video on demand y streaming**
+- **Archivos de media** — imágenes, documentos, cualquier tipo de archivo
+
+<Callout type="warn">
+**Para el examen SAA-C03:** El origin es la fuente del contenido; la distribution es la configuración. El TTL por defecto es 24 horas. La invalidación de caché permite limpiar contenido antes de que expire el TTL. HTTPS está habilitado por defecto. CloudFront distribuye contenido desde edge locations cercanas al usuario.
+</Callout>

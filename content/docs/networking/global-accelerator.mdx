@@ -1,6 +1,46 @@
 ---
 title: "Global Accelerator"
-description: "Acelerador de red global."
+description: "AWS Global Accelerator — mejora el rendimiento global enrutando tráfico a través del backbone de AWS con IPs Anycast."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+**AWS Global Accelerator** mejora el rendimiento de tus aplicaciones enrutando el tráfico de los usuarios a través del **backbone de AWS** en lugar del internet público. Los usuarios se conectan a la edge location más cercana y desde ahí el tráfico viaja por la red privada de AWS hasta tu aplicación.
+
+## El Problema que Resuelve
+
+Cuando un usuario envía una solicitud a tu aplicación, el tráfico viaja por internet a través de múltiples proveedores (ISPs). Este camino es:
+
+- **Impredecible** — no siempre toma la ruta más eficiente
+- **Inestable** — sujeto a congestión y variabilidad
+- **Lento** — mayor latencia comparado con una red dedicada
+
+## Cómo Funciona
+
+1. El usuario envía una solicitud
+2. Se conecta a la **edge location más cercana** de Global Accelerator
+3. Desde la edge location, el tráfico viaja por el **backbone de AWS** (red privada)
+4. Llega a tu aplicación en la región de destino
+
+```
+Usuario → Edge Location (más cercana) → AWS Backbone → Aplicación (región)
+```
+
+El backbone de AWS ofrece conexiones más rápidas, seguras y eficientes que el internet público.
+
+## CloudFront vs Global Accelerator
+
+| Característica | CloudFront | Global Accelerator |
+|---|---|---|
+| **Propósito** | **Cachear contenido** en edge locations | **Enrutar tráfico** al backbone de AWS |
+| **Edge locations** | Almacenan objetos en caché | Punto de entrada a la red de AWS |
+| **Tipo de contenido** | Estático (imágenes, videos, HTML) | Cualquier tráfico de aplicación |
+| **Mejora** | Latencia de descarga | Latencia de conexión a la app |
+
+<Callout type="info">
+**No confundir:** CloudFront cachea contenido en el borde; Global Accelerator enruta usuarios al backbone de AWS lo más rápido posible. Ambos usan edge locations pero con propósitos diferentes.
+</Callout>
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Global Accelerator usa edge locations para enrutar tráfico al backbone de AWS, no para cachear contenido. Mejora el rendimiento global al evitar el internet público. Diferéncialo de CloudFront: CloudFront cachea, Global Accelerator enruta.
+</Callout>

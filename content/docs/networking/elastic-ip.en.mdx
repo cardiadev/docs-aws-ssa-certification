@@ -1,6 +1,34 @@
 ---
 title: "Elastic IP"
-description: "Content coming soon."
+description: "Static public IP addresses — allocation, association and pricing."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**Elastic IPs** are static IPv4 addresses you can allocate to your AWS account and associate with EC2 instances. Unlike regular public IPs that change on reboot, Elastic IPs **remain fixed**.
+
+## The Problem They Solve
+
+When an EC2 instance in a public subnet gets a public IP, that IP is **not reserved**. If the instance reboots it may get a completely different IP — causing problems for users, DNS records and IP whitelists.
+
+## How They Work
+
+1. **Allocate** an Elastic IP to your account — it is reserved for you
+2. **Associate** the Elastic IP with an EC2 instance or network interface
+3. The instance keeps that fixed IP even after reboots
+
+You can **disassociate** an Elastic IP from one instance and **reassociate** it with another — useful for migrating traffic during maintenance.
+
+## Features
+
+| Feature | Detail |
+|---|---|
+| **Type** | Static IPv4 |
+| **Scope** | Region-specific |
+| **Source** | Amazon's pool or your own pool (BYOIP) |
+| **Cost** | Free when associated with a running instance |
+| **Extra cost** | Hourly charge if NOT associated or if you have more than one per instance |
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Elastic IPs are regional and cannot be moved between regions. Regular public IPs change on reboot; Elastic IPs do not. You are charged for unassociated Elastic IPs — always associate or release them.
+</Callout>

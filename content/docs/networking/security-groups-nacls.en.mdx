@@ -1,6 +1,86 @@
 ---
 title: "Security Groups & NACLs"
-description: "Content coming soon."
+description: "Stateful and stateless firewalls — Security Groups at the resource level and NACLs at the subnet level."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+AWS provides two firewall mechanisms to control traffic in your VPC:
+
+- **Security Groups** — **stateful** firewalls that operate at the resource level (EC2, ENI, etc.)
+- **Network ACLs (NACLs)** — **stateless** firewalls that operate at the subnet level
+
+## Stateful vs Stateless
+
+| Type | Behavior |
+|---|---|
+| **Stateful** (Security Groups) | If you allow inbound traffic, the response is automatically allowed without an outbound rule |
+| **Stateless** (NACLs) | You must explicitly allow both inbound and outbound traffic |
+
+## Security Groups
+
+Security Groups act as firewalls for individual resources (EC2, NICs, etc.).
+
+### Security Group Rules
+
+Each rule defines:
+
+- **IP version** — IPv4 or IPv6
+- **Type** — traffic type (HTTP, SSH, Custom TCP, etc.)
+- **Protocol** — TCP, UDP, ICMP, etc.
+- **Port range** — port or port range (e.g. 80, 200-300)
+- **Source/Destination** — IP, CIDR range or another Security Group ID
+- **Description** — optional description
+
+### Key Behavior
+
+- No rules = **everything blocked** (implicit deny)
+- Rules can only **allow** traffic — there is no deny option
+- By default, Security Groups allow **all outbound traffic**
+- You can assign **multiple Security Groups** to a resource — rules are **merged**
+
+### Example
+
+| Direction | Type | Protocol | Port | Source |
+|---|---|---|---|---|
+| Inbound | HTTP | TCP | 80 | `0.0.0.0/0` |
+| Inbound | SSH | TCP | 22 | `1.1.1.1/32` |
+| Outbound | All traffic | All | All | `0.0.0.0/0` |
+
+## Network ACLs (NACLs)
+
+NACLs filter traffic **entering and leaving a subnet**.
+
+### NACL Rules
+
+Each rule has:
+
+- **Rule number** — determines processing order (lower number = higher priority)
+- **Type** — traffic type
+- **Protocol** — protocol
+- **Port range** — ports
+- **Source/Destination** — IP addresses
+- **Allow/Deny** — unlike Security Groups, NACLs can **allow or deny**
+
+Rules are processed **in numerical order**. When a rule matches, it is applied and no further rules are evaluated.
+
+### Key Behavior
+
+- Each subnet must be associated with **exactly one** NACL
+- A NACL can be associated with **multiple subnets**
+- NACLs have a final catch-all rule that **denies all** unmatched traffic
+
+## Comparison
+
+| Feature | Security Groups | NACLs |
+|---|---|---|
+| **Level** | Resource (EC2, ENI) | Subnet |
+| **Type** | Stateful | Stateless |
+| **Rules** | Allow only | Allow and deny |
+| **Rule order** | All evaluated | Processed by number |
+| **Multiple per resource** | Yes (merged) | No (one per subnet) |
+| **Default outbound** | Allows all | Depends on configuration |
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Security Groups are stateful (automatic responses) and allow only; NACLs are stateless (require explicit rules in both directions) and can allow or deny. Multiple Security Groups are merged. Each subnet has exactly one NACL.
+</Callout>

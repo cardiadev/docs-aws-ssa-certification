@@ -1,6 +1,54 @@
 ---
 title: "Lambda@Edge"
-description: "Content coming soon."
+description: "CloudFront Functions and Lambda@Edge — running code at edge locations to manipulate requests and responses."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**CloudFront Functions** and **Lambda@Edge** allow you to run code at CloudFront edge locations, as close to your users as possible. They can manipulate requests and responses flowing through CloudFront without needing a backend server.
+
+## When They Execute
+
+### CloudFront Functions
+
+- When a **request is received** from the viewer (user)
+- Before **sending a response** to the viewer
+
+### Lambda@Edge
+
+- When a **request is received** from the viewer
+- When CloudFront **forwards a request to the origin**
+- When a **response is received from the origin**
+- Before **sending a response** to the viewer
+
+## Comparison
+
+| Feature | CloudFront Functions | Lambda@Edge |
+|---|---|---|
+| **Duration** | Sub-millisecond | Milliseconds or more |
+| **CPU/Memory** | Fixed, lightweight | Adjustable |
+| **Network access** | No | Yes |
+| **Filesystem access** | No | Yes |
+| **External libraries** | No | Yes (AWS SDK, etc.) |
+| **HTTP body access** | No | Yes |
+
+## Use Cases
+
+### CloudFront Functions
+
+- **Cache key normalization** — transform HTTP attributes to improve cache hit ratio
+- **Header manipulation** — insert, modify or delete HTTP headers
+- **URL redirects and rewrites**
+- **Request authorization** — validate JWT tokens by inspecting authorization headers
+
+### Lambda@Edge
+
+- **Long-running functions** (several milliseconds or more)
+- Functions that need **adjustable CPU or memory**
+- Functions that depend on **external libraries** (AWS SDK, etc.)
+- Functions that need **network access** for external services
+- Functions that need **filesystem access** or access to the HTTP request body
+
+<Callout type="warn">
+**For the SAA-C03 exam:** CloudFront Functions are for lightweight, fast operations (headers, redirects, auth). Lambda@Edge is for more complex functions that need network, filesystem or longer execution time. Both run code at edge locations. Choose based on the complexity of your use case.
+</Callout>

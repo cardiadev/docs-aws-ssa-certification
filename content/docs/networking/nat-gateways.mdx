@@ -1,6 +1,52 @@
 ---
 title: "NAT Gateways"
-description: "Network Address Translation para subredes privadas."
+description: "NAT Gateways — acceso a internet para subredes privadas sin exponerlas al tráfico entrante."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Un **NAT Gateway** permite que recursos en subnets privadas accedan a internet para descargar actualizaciones y parches de seguridad, **sin permitir que internet inicie conexiones hacia esos recursos**. La conexión debe ser iniciada desde dentro de la VPC.
+
+## El Problema que Resuelve
+
+Si tienes un servidor en una subnet privada que necesita acceso a internet (por ejemplo, para descargar actualizaciones), podrías moverlo a una subnet pública — pero eso lo expondría a todo internet.
+
+**NAT Gateway** resuelve este problema: permite conexiones **salientes** (de la VPC a internet) pero **bloquea** conexiones **entrantes** (de internet a la VPC).
+
+## Cómo Funciona
+
+El NAT Gateway requiere un **Internet Gateway** previamente configurado. El flujo es:
+
+1. Crear un **Internet Gateway** y adjuntarlo a la VPC
+2. Crear una **subnet pública** con ruta por defecto al IGW
+3. Desplegar el **NAT Gateway** en la subnet pública
+4. Configurar la route table de la subnet privada con ruta por defecto (`0.0.0.0/0`) apuntando al NAT Gateway
+
+El flujo de tráfico:
+
+```
+Servidor (subnet privada) → NAT Gateway (subnet pública) → Internet Gateway → Internet
+```
+
+El servidor no tiene IP pública, por lo que internet nunca puede iniciar una conexión directa hacia él.
+
+## Características Principales
+
+| Característica | Detalle |
+|---|---|
+| **Servicio administrado** | AWS lo gestiona completamente tras el despliegue |
+| **Ubicación** | Se despliega en una **subnet pública** |
+| **Resiliencia** | Específico de una **AZ** (no es region-resilient) |
+| **Elastic IP** | Requiere una Elastic IP asociada |
+| **Ancho de banda** | 5 Gbps por defecto, escala automáticamente hasta 100 Gbps |
+| **Facturación** | Cobro por hora de ejecución + por GB de datos procesados |
+
+## Alta Disponibilidad
+
+A diferencia de los Internet Gateways, los NAT Gateways **no son region-resilient**. Si la AZ donde está tu NAT Gateway falla, pierdes el acceso a internet para las subnets privadas que lo usan.
+
+Para lograr redundancia, despliega **un NAT Gateway por cada AZ** que utilices y configura las route tables de cada subnet privada para apuntar al NAT Gateway de su propia AZ.
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Los NAT Gateways necesitan un Internet Gateway para funcionar. Son AZ-específicos, así que necesitas uno por AZ para alta disponibilidad. Usan Elastic IPs. La facturación es por hora + por GB procesado. Permiten tráfico saliente pero bloquean conexiones entrantes desde internet.
+</Callout>

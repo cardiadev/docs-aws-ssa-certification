@@ -1,6 +1,73 @@
 ---
 title: "Amazon VPC"
-description: "Content coming soon."
+description: "Virtual Private Cloud — isolated virtual networks in AWS, CIDR blocks, default vs custom VPC."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+A **Virtual Private Cloud (VPC)** is a secure, isolated network segment hosted within AWS. VPCs let you separate your resources from other customers and isolate different applications within the same account.
+
+With a VPC you get full control over:
+
+- **Network isolation** — resources inside a VPC cannot communicate with another VPC by default
+- **Firewalls** — Security Groups and NACLs to control inbound and outbound traffic
+- **Gateways** — customize traffic entering and leaving your VPC
+- **IP addressing** — define the IP range with CIDR blocks
+
+## Key Concepts
+
+### Region and Isolation
+
+VPCs are **specific to a single region**. When you create a VPC you must specify which region it will exist in. A VPC cannot span multiple regions.
+
+By default, resources deployed in a VPC **cannot communicate** with resources in another VPC. If you need inter-VPC communication or internet access, you must explicitly enable it.
+
+### CIDR Blocks
+
+Every VPC has an IP address range assigned through a **CIDR block** (Classless Inter-Domain Routing):
+
+- Defines the IPs available for resources inside the VPC
+- Can range from **/16** (65,536 addresses) to **/28** (16 addresses)
+- You can optionally add a **secondary IPv4 CIDR block**
+- You can enable **IPv6 CIDR blocks** (/56) — up to 5 blocks (adjustable limit)
+
+**Example:** a VPC with CIDR `10.0.0.0/16` makes addresses from `10.0.0.0` to `10.0.255.255` available.
+
+## Default VPC vs Custom VPC
+
+| Feature | Default VPC | Custom VPC |
+|---|---|---|
+| **Creation** | Automatic by AWS in every region | Created manually by you |
+| **CIDR block** | Always `172.31.0.0/16` | You define it |
+| **Subnets** | One /20 subnet per AZ | You configure them |
+| **Internet access** | Enabled by default | Must be configured |
+| **Internet Gateway** | Created and attached automatically | Must create and attach |
+| **Default route** | `0.0.0.0/0` → Internet Gateway | Must create it |
+| **Security Group** | Allows outbound traffic | You define the rules |
+| **NACL** | Allows all traffic (inbound & outbound) | You define the rules |
+
+### Default VPC Configuration
+
+When you create an AWS account you get **one default VPC in every region** with this configuration:
+
+1. CIDR block: `172.31.0.0/16` (65,536 addresses)
+2. One **default subnet** in each Availability Zone (AZ) with a /20 CIDR
+3. An **Internet Gateway** attached with a `0.0.0.0/0` route
+4. A **default Security Group** (allows outbound traffic)
+5. A **default NACL** (allows all traffic)
+6. Subnets auto-assign a **public IP** to instances
+
+### Creating a Custom VPC
+
+To create a custom VPC:
+
+1. Select the **region** where you will deploy the VPC
+2. Define the **IPv4 CIDR block** (e.g. `10.0.0.0/16`)
+3. Optionally enable an **IPv6 CIDR block** (Amazon can provide one)
+4. Choose the **tenancy** type (default or dedicated)
+
+AWS will automatically create a **route table** and a **default NACL** for your new VPC, but it will **not** create subnets, Internet Gateways, or routes to the internet — you must configure all of that yourself.
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Remember that VPCs are region-specific and cannot span multiple regions. The default VPC CIDR is always `172.31.0.0/16`. If a question mentions inter-VPC communication, remember that VPCs are completely isolated by default.
+</Callout>

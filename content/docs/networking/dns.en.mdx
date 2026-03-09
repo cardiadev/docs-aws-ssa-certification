@@ -1,6 +1,54 @@
 ---
 title: "DNS (VPC)"
-description: "Content coming soon."
+description: "Domain name resolution inside a VPC — AWS DNS servers and configuration options."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+When you deploy resources like EC2 instances into a subnet, AWS assigns a **private IP** and automatically generates a **DNS hostname** based on that IP. This mechanism allows communication within the VPC using names instead of IP addresses.
+
+## Private DNS Hostnames
+
+By default, all private IPs assigned to an EC2 instance receive a domain name with the IP embedded. For example, an instance with IP `10.0.100.10` will receive a name like:
+
+```
+ip-10-0-100-10.ec2.internal
+```
+
+This applies to both public and private subnets. Resources can communicate using the IP directly or through the DNS name.
+
+## AWS DNS Servers
+
+To resolve these domain names, AWS provides DNS servers accessible from two addresses:
+
+| Address | Description |
+|---|---|
+| `169.254.169.253` | Accessible from any resource in the VPC |
+| Second IP of the VPC CIDR | E.g. if the CIDR is `10.10.0.0/16`, DNS is at `10.10.0.2` |
+
+## DNS Configuration Options
+
+When creating a custom VPC, there are **two key options** that control DNS behavior:
+
+### enableDnsSupport
+
+Determines whether the VPC supports **DNS resolution** through the Amazon-provided DNS servers.
+
+- If **enabled** (default: `true`): queries to Amazon DNS servers work correctly
+- If **disabled**: no DNS resolution — you cannot use domain names to communicate
+
+### enableDnsHostnames
+
+Determines whether the VPC assigns **public DNS hostnames** to instances with public IPs.
+
+- Default: `false` for custom VPCs, `true` for the default VPC
+- If **enabled**: instances with public IPs also get a public DNS hostname
+- If **disabled**: only private IPs get DNS hostnames
+
+<Callout type="info">
+For public DNS hostnames to work, **both options** must be enabled: `enableDnsSupport` and `enableDnsHostnames`.
+</Callout>
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Remember the two options — `enableDnsSupport` enables DNS resolution and `enableDnsHostnames` enables DNS names for public IPs. The DNS server is at the second IP of the VPC CIDR block or at `169.254.169.253`.
+</Callout>

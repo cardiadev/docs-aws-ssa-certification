@@ -1,6 +1,48 @@
 ---
 title: "Transit Gateway"
-description: "Hub centralizado para conectar VPCs y redes on-premises."
+description: "AWS Transit Gateway — hub centralizado para conectar múltiples VPCs y redes on-premises con enrutamiento transitivo."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+**AWS Transit Gateway** es un servicio que actúa como un **router centralizado** para conectar múltiples VPCs y redes on-premises. Elimina la necesidad de crear un full mesh de VPC Peerings, simplificando drásticamente la arquitectura de red.
+
+## El Problema que Resuelve
+
+Con VPC Peering, si tienes 4 VPCs que necesitan comunicarse entre sí, necesitas **6 peerings** (full mesh). A medida que creces, la cantidad de peerings escala exponencialmente. Además, necesitarías una conexión VPN separada desde on-premises a cada VPC.
+
+Transit Gateway resuelve esto: cada VPC solo necesita **una conexión** al Transit Gateway, y este se encarga del enrutamiento entre todas.
+
+## Cómo Funciona
+
+1. Despliegas un **Transit Gateway**
+2. Conectas cada VPC al Transit Gateway
+3. El Transit Gateway actúa como router y permite **enrutamiento transitivo** entre todas las VPCs conectadas
+
+```
+VPC A ─┐
+VPC B ─┤── Transit Gateway ──┤── VPN / Direct Connect → On-premises
+VPC C ─┤
+VPC D ─┘
+```
+
+### Requisito de Subnets
+
+Debes especificar **una subnet por cada AZ** en cada VPC que quieras conectar al Transit Gateway. Estas subnets dedicadas permiten al TGW enrutar tráfico en esas AZs.
+
+## Conectividad On-Premises
+
+- Puedes terminar una **VPN** directamente en el Transit Gateway (en lugar de necesitar una VPN por VPC)
+- También soporta **Direct Connect** para conexión on-premises
+- Reduces múltiples conexiones VPN a **una sola**
+
+## Peering entre Transit Gateways
+
+Los Transit Gateways pueden hacer peering con otros Transit Gateways en:
+
+- **Diferentes regiones**
+- **Diferentes cuentas AWS**
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Transit Gateway permite enrutamiento transitivo (a diferencia de VPC Peering). Simplifica la conectividad entre múltiples VPCs y on-premises. Necesitas una subnet por AZ para el TGW. Puede hacer peering con TGWs en otras regiones y cuentas.
+</Callout>

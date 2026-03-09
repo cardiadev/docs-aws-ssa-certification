@@ -1,6 +1,62 @@
 ---
 title: "Direct Connect"
-description: "Content coming soon."
+description: "AWS Direct Connect — dedicated physical connection between your data center and AWS without traversing the internet."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**AWS Direct Connect (DX)** is a dedicated physical connection between your on-premises network and AWS. Unlike a VPN that travels over the internet, Direct Connect uses a **direct connection** through the AWS backbone, offering higher throughput, lower latency and greater stability.
+
+## Components
+
+The Direct Connect architecture has three parts:
+
+1. **On-premises network** — your data center with an edge router or firewall
+2. **Direct Connect Location** — a regional data center where AWS has routers available for connection
+3. **AWS Cloud** — your VPCs and AWS public services
+
+### Connection Flow
+
+```
+On-premises → Customer Router (DX Location) → Cross Connect → AWS Router (DX Location) → AWS Backbone → VPC / Public services
+```
+
+At the DX location:
+- **Customer Router** — your router installed at the DX location
+- **AWS Direct Connect Router** — AWS-owned router
+- **Cross Connect** — the physical connection you purchase between both routers
+
+## Access Types
+
+| Destination | Method |
+|---|---|
+| **Private resources** (private subnets) | Through a VPN Gateway connected to the AWS router at the DX location |
+| **Public services** (S3, etc.) | Directly from the AWS router to AWS public services |
+
+In both cases traffic travels through the **AWS backbone**, not the internet.
+
+## Available Speeds
+
+- **1 Gbps**
+- **10 Gbps**
+- **100 Gbps**
+
+## Direct Connect vs VPN
+
+| Feature | Direct Connect | VPN |
+|---|---|---|
+| **Medium** | Dedicated physical connection | Internet (IPsec tunnel) |
+| **Latency** | Low and consistent | Variable |
+| **Throughput** | Up to 100 Gbps | Up to 1.25 Gbps per tunnel |
+| **Stability** | High | Depends on ISP |
+| **Setup time** | Weeks/months | Minutes |
+| **Cost** | Higher upfront cost | Lower cost |
+
+## Pricing
+
+- Charged per **port hours** used
+- Charged for **egress data** out
+
+<Callout type="warn">
+**For the SAA-C03 exam:** Direct Connect is a physical connection (not over the internet) offering higher throughput and lower latency than a VPN. Charged per port hours + egress data. Supports access to both private resources and AWS public services through the AWS backbone.
+</Callout>

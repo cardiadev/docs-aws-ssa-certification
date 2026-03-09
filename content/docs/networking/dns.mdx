@@ -1,6 +1,54 @@
 ---
 title: "DNS (VPC)"
-description: "Resolución DNS dentro de VPC."
+description: "Resolución de nombres de dominio dentro de una VPC — servidores DNS de AWS y opciones de configuración."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Cuando despliegas recursos como instancias EC2 en una subnet, AWS les asigna una **IP privada** y automáticamente les genera un **nombre de dominio DNS** basado en esa IP. Este mecanismo permite la comunicación dentro de la VPC usando nombres en lugar de direcciones IP.
+
+## Nombres DNS Privados
+
+Por defecto, todas las IPs privadas asignadas a una instancia EC2 reciben un nombre de dominio con la IP embebida. Por ejemplo, una instancia con IP `10.0.100.10` recibirá un nombre como:
+
+```
+ip-10-0-100-10.ec2.internal
+```
+
+Esto aplica tanto para subnets públicas como privadas. Los recursos pueden comunicarse usando la IP directamente o mediante el nombre DNS.
+
+## Servidores DNS de AWS
+
+Para resolver estos nombres de dominio, AWS proporciona servidores DNS accesibles desde dos direcciones:
+
+| Dirección | Descripción |
+|---|---|
+| `169.254.169.253` | Accesible desde cualquier recurso en la VPC |
+| Segunda IP del CIDR de la VPC | Ej: si el CIDR es `10.10.0.0/16`, el DNS está en `10.10.0.2` |
+
+## Opciones de Configuración DNS
+
+Al crear una VPC personalizada, hay **dos opciones clave** que controlan el comportamiento DNS:
+
+### enableDnsSupport
+
+Determina si la VPC soporta **resolución DNS** a través de los servidores DNS de Amazon.
+
+- Si está **habilitado** (por defecto: `true`): las consultas a los servidores DNS de Amazon funcionan correctamente
+- Si está **deshabilitado**: no hay resolución DNS — no puedes usar nombres de dominio para comunicarte
+
+### enableDnsHostnames
+
+Determina si la VPC asigna **nombres DNS públicos** a instancias con IP pública.
+
+- Por defecto: `false` en VPCs personalizadas, `true` en la VPC por defecto
+- Si está **habilitado**: las instancias con IP pública también reciben un nombre DNS público
+- Si está **deshabilitado**: solo las IPs privadas obtienen nombres DNS
+
+<Callout type="info">
+Para que los nombres DNS públicos funcionen, **ambas opciones** deben estar habilitadas: `enableDnsSupport` y `enableDnsHostnames`.
+</Callout>
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Recuerda las dos opciones — `enableDnsSupport` habilita la resolución DNS y `enableDnsHostnames` habilita nombres DNS para IPs públicas. El servidor DNS está en la segunda IP del CIDR de la VPC o en `169.254.169.253`.
+</Callout>

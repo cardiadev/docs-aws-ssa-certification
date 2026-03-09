@@ -1,6 +1,55 @@
 ---
 title: "Routing in VPC"
-description: "Tablas de rutas y enrutamiento en VPC."
+description: "Tablas de rutas, rutas locales y cómo fluye el tráfico dentro de una VPC."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Cada VPC tiene un **VPC router** que se encarga de enrutar el tráfico entre subnets, así como hacia y desde la VPC. El router tiene una interfaz en cada subnet, accesible desde la dirección **network + 1** (ej: si la subnet es `192.168.1.0/24`, el router está en `192.168.1.1`).
+
+## Tablas de Rutas (Route Tables)
+
+Una **route table** es un conjunto de reglas que el router usa para reenviar tráfico de red. Cada regla se llama una **ruta** (route).
+
+### Cómo Funciona el Enrutamiento
+
+1. Un paquete sale de una subnet
+2. El router examina la **IP de destino** del paquete
+3. Busca una ruta que coincida en la columna **Destination**
+4. Reenvía el paquete al recurso indicado en la columna **Target**
+
+### Longest Prefix Match
+
+Si un paquete coincide con más de una ruta, el router selecciona la ruta con el **prefijo más largo** (más específico). Por ejemplo, si hay rutas para `/8` y `/16`, se elige la `/16` porque es más específica.
+
+### Ruta Local (Local Route)
+
+Todas las route tables tienen **al menos una ruta por defecto**: la **ruta local**.
+
+| Destination | Target |
+|---|---|
+| `10.16.0.0/16` (CIDR de la VPC) | `local` |
+
+Esta ruta permite que cualquier recurso dentro de la VPC pueda comunicarse con cualquier otro recurso en la misma VPC. Si la VPC tiene IPv6 habilitado, también existirá una ruta local para el bloque CIDR IPv6.
+
+La ruta local **no se puede eliminar ni modificar**.
+
+## Asociación de Subnets y Route Tables
+
+- Cada subnet está asociada a **exactamente una** route table
+- Múltiples subnets pueden compartir la **misma** route table
+- Cuando creas una VPC, se crea una **route table por defecto** automáticamente
+- Las nuevas subnets se asocian automáticamente a la route table por defecto hasta que las cambies
+
+### ¿Por qué tener múltiples Route Tables?
+
+Un patrón muy común es tener:
+
+- Una **route table pública** — con ruta por defecto (`0.0.0.0/0`) apuntando al Internet Gateway
+- Una **route table privada** — con ruta por defecto apuntando a un NAT Gateway (o sin ruta por defecto)
+
+Esto permite que las subnets públicas tengan acceso directo a internet, mientras que las subnets privadas solo pueden salir a internet a través del NAT Gateway.
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Recuerda que la ruta local siempre existe y no se puede eliminar. Si hay conflicto entre rutas, gana el prefijo más largo. Cada subnet pertenece a exactamente una route table, pero una route table puede tener múltiples subnets.
+</Callout>

@@ -1,6 +1,78 @@
 ---
 title: "Subnets"
-description: "Subredes públicas y privadas en VPC."
+description: "Subredes dentro de una VPC — públicas, privadas, direccionamiento IP y zonas de disponibilidad."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Las **subnets** (subredes) son grupos de direcciones IP dentro de tu VPC donde despliegas recursos. Cada subnet reside en **una sola zona de disponibilidad (AZ)**, y es así como determinas en qué AZ se despliega un recurso.
+
+## Conceptos Clave
+
+### Subnets y Zonas de Disponibilidad
+
+Cuando despliegas un recurso (como una instancia EC2), lo haces en una subnet específica. Esa subnet existe en una sola AZ, por lo que el recurso queda desplegado en esa AZ.
+
+- **Subnet 1** en AZ `us-east-1a` → recursos desplegados aquí estarán en `us-east-1a`
+- **Subnet 2** en AZ `us-east-1b` → recursos aquí estarán en `us-east-1b`
+
+### Reglas de Direccionamiento
+
+- Las subnets deben estar **dentro del rango CIDR de la VPC**
+- El tamaño del bloque debe estar entre **/16** y **/28**
+- Las subnets **no pueden solaparse** con otras subnets en la misma VPC (pero sí pueden solaparse con subnets en VPCs diferentes)
+- Por defecto, las subnets dentro de la misma VPC **pueden comunicarse entre sí** sin configuración adicional
+
+### Direcciones IP Reservadas
+
+En cada subnet, **5 direcciones IP están reservadas** y no pueden asignarse a recursos:
+
+| Dirección | Propósito |
+|---|---|
+| Primera (`.0`) | Dirección de red |
+| Segunda (`.1`) | Router de la VPC |
+| Tercera (`.2`) | Servidor DNS |
+| Cuarta (`.3`) | Reservada por AWS para uso futuro |
+| Última (`.255`) | Dirección de broadcast |
+
+**Ejemplo:** en una subnet `192.168.10.0/24`, las IPs `.0`, `.1`, `.2`, `.3` y `.255` no están disponibles, dejando 251 IPs utilizables.
+
+## Subnets Públicas vs Privadas
+
+La diferencia entre una subnet pública y una privada depende de si los dispositivos en internet pueden acceder a los recursos desplegados en ella.
+
+| Pregunta | Subnet |
+|---|---|
+| ¿Los usuarios de internet necesitan acceder al recurso? | **Pública** |
+| ¿Solo otros recursos internos necesitan acceder? | **Privada** |
+
+### Ejemplo de Arquitectura
+
+Un patrón muy común es:
+
+1. **Web server** → subnet **pública** (los usuarios necesitan acceder desde internet)
+2. **Base de datos** → subnet **privada** (solo el web server necesita comunicarse con ella)
+
+Los usuarios se conectan al web server en la subnet pública, y el web server se comunica internamente con la base de datos en la subnet privada. Esto protege la base de datos de acceso directo desde internet.
+
+### Otro Caso de Uso: Extensión del Data Center
+
+Si usas AWS como extensión de tu data center privado, puedes desplegar todos los recursos en subnets privadas y conectar tu data center a AWS mediante una **VPN**. No necesitas subnets públicas porque los recursos no requieren acceso directo desde internet.
+
+## Configuración
+
+Al crear una subnet puedes:
+
+- Asignarla a una **AZ específica**
+- Definir un **bloque CIDR IPv4** dentro del rango de la VPC
+- Opcionalmente definir un **bloque CIDR IPv6 /64**
+- Habilitar la **asignación automática de IP pública** (necesario para subnets públicas)
+- Configurar subnets que usen **solo IPv6** sin direcciones IPv4
+
+<Callout type="info">
+**Lo que determina si una subnet es pública o privada son los gateways:** una subnet con ruta hacia un Internet Gateway es pública; sin esa ruta, es privada. La configuración de auto-asignar IP pública es un complemento, no el factor determinante.
+</Callout>
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Recuerda que las subnets no pueden solaparse dentro de la misma VPC, que 5 IPs están reservadas por AWS en cada subnet, y que las subnets residen en una sola AZ. Si necesitas alta disponibilidad, despliega recursos en subnets de múltiples AZs.
+</Callout>

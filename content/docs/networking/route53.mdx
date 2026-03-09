@@ -1,6 +1,58 @@
 ---
 title: "Route 53"
-description: "Servicio DNS gestionado de AWS."
+description: "Amazon Route 53 — servicio DNS administrado, hosted zones, registrador de dominios y Application Recovery Controller."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+**Amazon Route 53** es el servicio DNS administrado de AWS. Permite registrar dominios, gestionar registros DNS y enrutar tráfico a tus aplicaciones. Es un **servicio global** — no está asociado a ninguna región específica.
+
+## Funcionalidades Principales
+
+- **Registrador de dominios** — puedes comprar dominios directamente (como GoDaddy o Namecheap)
+- **Gestión de registros DNS** — administra todos los registros para tus dominios
+- **Enrutamiento de tráfico** — dirige usuarios a tus recursos de AWS
+
+## Hosted Zones
+
+Una **hosted zone** es el contenedor donde defines todos los registros DNS y reglas para un dominio específico.
+
+Cuando creas una hosted zone:
+
+1. AWS reserva **4 name servers** exclusivos para tu zona
+2. Todos los registros DNS de ese dominio se almacenan en la hosted zone
+3. Cada dominio tiene su propia hosted zone independiente
+
+**Ejemplo:**
+- `kodekloud.com` → hosted zone con 4 name servers dedicados
+- `fastcars.com` → otra hosted zone con otros 4 name servers
+
+## Application Recovery Controller
+
+**Route 53 Application Recovery Controller (ARC)** es un servicio que monitorea continuamente la capacidad de tu aplicación para recuperarse de fallos y controla la recuperación entre regiones y AZs.
+
+### Conceptos Clave de ARC
+
+| Término | Descripción |
+|---|---|
+| **Cell** | Grupo de todos los recursos necesarios para que una aplicación opere independientemente (ej: LB + EC2 en una región) |
+| **Recovery Group** | Colección de cells que representan una aplicación — monitorea la disponibilidad de sitios activo y standby |
+| **Resource Set** | Recursos que abarcan múltiples cells (ej: DynamoDB Global Table) |
+| **Readiness Check** | Verificación continua de que el sitio standby está listo para recibir tráfico |
+| **Routing Control** | Permite hacer failover manual del tráfico al sitio standby vía Route 53 |
+
+### Arquitectura Típica
+
+1. **Sitio activo** — región primaria con LB + EC2 + base de datos
+2. **Sitio standby** — región secundaria con la misma configuración
+3. **ARC** monitorea ambos sitios y verifica que el standby esté listo
+4. Route 53 dirige DNS al sitio activo; en caso de fallo, redirige al standby
+
+### Casos de Uso
+
+- **Failover automático** — redirigir tráfico cuando la aplicación se degrada
+- **Mantenimiento planificado** — desviar tráfico manualmente al sitio standby durante mantenimiento
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Route 53 es un servicio global (no regional). Las hosted zones contienen los registros DNS de un dominio con 4 name servers dedicados. ARC monitorea la disponibilidad del sitio standby y permite failover manual o automático usando Route 53 para redirigir DNS.
+</Callout>

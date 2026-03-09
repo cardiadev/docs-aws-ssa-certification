@@ -1,6 +1,45 @@
 ---
 title: "Internet Gateways"
-description: "Content coming soon."
+description: "Internet gateways — how to make a subnet public and enable internet connectivity."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+An **Internet Gateway (IGW)** is the component that allows resources within a VPC to communicate with the internet. When you create a subnet it is **private** by default — devices cannot talk to the internet and vice versa. To make it public you need an Internet Gateway.
+
+## Key Features
+
+- Attached to a **VPC** and is **region-resilient** (covers all AZs in the region)
+- A VPC can have **at most one** Internet Gateway
+- An Internet Gateway can only be attached to **one VPC** at a time
+- If a VPC has no IGW, **all** its subnets are private
+
+## How to Make a Subnet Public
+
+Turning a private subnet into a public one requires these steps:
+
+1. **Create** an Internet Gateway
+2. **Attach** it to the VPC
+3. **Create a custom route table** with a default route (`0.0.0.0/0`) pointing to the IGW
+4. **Associate** the subnet with that route table
+
+Once these steps are complete, resources in that subnet will have internet access.
+
+## Public and Private IPs
+
+When you deploy a resource into a public subnet it only gets a **private IP** by default. To make it reachable from the internet you must enable **auto-assign public IP**.
+
+Once enabled, the resource will have both IPs:
+
+- **Private IP** (e.g. `192.168.1.1`) — the one the resource knows about
+- **Public IP** (e.g. `1.1.1.1`) — associated by AWS to the resource
+
+<Callout type="info">
+**The resource does not know it has a public IP.** If you log into your EC2 console you will only see the private IP. AWS handles the translation (NAT) from public to private IP transparently.
+</Callout>
+
+The public IP is **linked to the private IP** of the network interface. If you have multiple interfaces, each can have its own public IP associated with it.
+
+<Callout type="warn">
+**For the SAA-C03 exam:** A subnet is public when it has a default route pointing to the Internet Gateway. Only one IGW per VPC is needed and it is region-resilient. Remember that the resource needs a public IP to be reachable from the internet.
+</Callout>

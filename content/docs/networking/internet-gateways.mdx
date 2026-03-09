@@ -1,6 +1,45 @@
 ---
 title: "Internet Gateways"
-description: "Puertas de enlace a internet para VPC."
+description: "Puertas de enlace a internet — cómo hacer una subnet pública y habilitar conectividad a internet."
 ---
 
-> 🚧 Contenido en construcción.
+## Resumen
+
+Un **Internet Gateway (IGW)** es el componente que permite a los recursos dentro de una VPC comunicarse con internet. Cuando creas una subnet, por defecto es **privada** — los dispositivos no pueden hablar con internet ni viceversa. Para hacerla pública necesitas un Internet Gateway.
+
+## Características Principales
+
+- Se adjunta a una **VPC** y es **region-resilient** (cubre todas las AZs de la región)
+- Una VPC puede tener **máximo un** Internet Gateway
+- Un Internet Gateway solo puede estar adjunto a **una VPC** a la vez
+- Si una VPC no tiene IGW, **todas** sus subnets son privadas
+
+## Cómo Hacer una Subnet Pública
+
+Convertir una subnet privada en pública requiere estos pasos:
+
+1. **Crear** un Internet Gateway
+2. **Adjuntarlo** a la VPC
+3. **Crear una route table personalizada** con una ruta por defecto (`0.0.0.0/0`) apuntando al IGW
+4. **Asociar** la subnet a esa route table
+
+Una vez completados estos pasos, los recursos en esa subnet tendrán acceso a internet.
+
+## IP Pública y Privada
+
+Cuando despliegas un recurso en una subnet pública, por defecto solo recibe una **IP privada**. Para que sea accesible desde internet necesitas habilitar la **asignación automática de IP pública**.
+
+Una vez habilitada, el recurso tendrá ambas IPs:
+
+- **IP privada** (ej: `192.168.1.1`) — la que el recurso conoce
+- **IP pública** (ej: `1.1.1.1`) — asociada por AWS al recurso
+
+<Callout type="info">
+**El recurso no sabe que tiene IP pública.** Si accedes a la consola de tu EC2, solo verás la IP privada. AWS se encarga de traducir (NAT) las solicitudes de la IP pública a la privada de forma transparente.
+</Callout>
+
+La IP pública está **vinculada a la IP privada** de la interfaz de red. Si tienes múltiples interfaces, cada una puede tener su propia IP pública asociada.
+
+<Callout type="warn">
+**Para el examen SAA-C03:** Una subnet es pública cuando tiene una ruta por defecto apuntando al Internet Gateway. Solo se necesita un IGW por VPC y es region-resilient. Recuerda que el recurso necesita una IP pública para ser accesible desde internet.
+</Callout>

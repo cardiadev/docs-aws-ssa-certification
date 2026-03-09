@@ -1,6 +1,48 @@
 ---
 title: "VPN"
-description: "Content coming soon."
+description: "Virtual Private Network — secure connection between your data center and AWS via IPsec tunnels."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+A **VPN (Virtual Private Network)** allows you to securely connect your on-premises network to your private resources in AWS. Traffic is sent through an **encrypted IPsec tunnel** that travels over the internet.
+
+## Components
+
+| Component | Location | Function |
+|---|---|---|
+| **VPN Gateway** (VGW) | AWS side | Terminates the VPN tunnel on AWS; attached to a VPC |
+| **Customer Gateway** (CGW) | On-premises side | Terminates the VPN tunnel on your network; requires a public IP |
+| **IPsec tunnel** | Internet | Encrypted connection between VGW and CGW |
+
+## How it Works
+
+1. Deploy a **VPN Gateway** and attach it to your VPC
+2. Configure a **Customer Gateway** on your on-premises network with a public IP
+3. An **encrypted IPsec tunnel** is established between both endpoints over the internet
+
+## Routing
+
+Two options for AWS to learn your on-premises routes:
+
+- **Static** — manually define a route in the AWS route table (e.g. `192.168.0.0/16` → VPN Gateway)
+- **Dynamic** — use **BGP** to automatically exchange routes between the VGW and CGW
+
+## Limits and Performance
+
+| Metric | Value |
+|---|---|
+| **Max bandwidth** per tunnel | 1.25 Gbps |
+| **Packets per second** | 140,000 |
+| **MTU** | 1,446 bytes |
+
+You can use **ECMP** (Equal-Cost Multi-Path) with multiple VPN tunnels to increase total bandwidth.
+
+## Pricing
+
+- Charged per **VPN connection hour** available
+- Charged for **egress data** out of AWS
+
+<Callout type="warn">
+**For the SAA-C03 exam:** The VPN Gateway is on the AWS side and the Customer Gateway is on the on-premises side. Traffic travels encrypted over the internet (unlike Direct Connect). Max bandwidth per tunnel is 1.25 Gbps. You can use static or dynamic (BGP) routing.
+</Callout>

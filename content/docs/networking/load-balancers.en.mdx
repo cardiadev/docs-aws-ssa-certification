@@ -1,6 +1,69 @@
 ---
 title: "Load Balancers"
-description: "Content coming soon."
+description: "Elastic Load Balancing — ALB, NLB, CLB, listeners, target groups and cross-zone load balancing."
 ---
 
-> 🚧 Content under construction.
+## Overview
+
+**Elastic Load Balancers (ELB)** automatically distribute incoming traffic across multiple targets (EC2, containers, Lambda) in multiple Availability Zones.
+
+## Types of Load Balancers
+
+| Type | Layer | Protocol | Notes |
+|---|---|---|---|
+| **Application LB (ALB)** | Layer 7 (application) | HTTP / HTTPS | Routes by headers, paths, hosts |
+| **Network LB (NLB)** | Layer 4 (transport) | TCP / UDP / TLS | Higher performance, lower latency |
+| **Classic LB (CLB)** | Layer 4 & 7 | HTTP / TCP | **Deprecated** — avoid in new projects |
+
+### ALB vs NLB
+
+| Feature | ALB | NLB |
+|---|---|---|
+| **Routing** | By HTTP content (path, host, headers) | By port/protocol |
+| **Performance** | Good | Faster than ALB |
+| **SSL termination** | Yes (always terminates HTTP/HTTPS) | Optional (can pass traffic without terminating) |
+| **Non-HTTP traffic** | No | Yes |
+
+## Public vs Private
+
+- **Public** — deployed in public subnets, accessible from the internet (e.g. web servers)
+- **Private** — deployed in private subnets, only accessible internally (e.g. database layer)
+
+### Multi-Tier Architecture
+
+A common pattern:
+
+1. **Public Load Balancer** → distributes traffic to API layer instances (public subnet)
+2. **Private Load Balancer** → distributes traffic to database layer instances (private subnet)
+
+The API layer sends requests to the private LB for the data layer. Users never access the database directly.
+
+## Listeners and Target Groups
+
+### Listeners
+
+A **listener** checks for connection requests using the protocol and port you configure. It defines rules to determine how to route traffic.
+
+Rule examples:
+- Requests to `app1.com` → Target Group A
+- Requests to `app2.com/auth` → Target Group B
+- Requests to `app2.com/cart` → Target Group C
+
+### Target Groups
+
+A **target group** routes requests to one or more registered targets:
+
+- **EC2** instances
+- **ECS** containers
+- **Lambda** functions
+- **IP addresses**
+
+Each target group has **health checks** configured to detect unhealthy targets and stop sending them traffic.
+
+## Cross-Zone Load Balancing
+
+By default, each load balancer node distributes traffic only to targets in its own AZ. With **cross-zone load balancing** enabled, traffic is distributed **evenly across all instances in all AZs**.
+
+<Callout type="warn">
+**For the SAA-C03 exam:** ALB operates at layer 7 and routes by HTTP content; NLB operates at layer 4 and is faster. CLB is deprecated. Listeners define routing rules and target groups group destinations. Cross-zone load balancing distributes traffic evenly across AZs. ALB always terminates HTTP/HTTPS; NLB can pass traffic without terminating.
+</Callout>
