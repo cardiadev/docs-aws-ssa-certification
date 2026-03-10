@@ -13,11 +13,17 @@ A diferencia de CloudFront, Global Accelerator **no cachea contenido**. En cambi
 ## Arquitectura
 
 <Mermaid chart={`
-flowchart LR
-  User["Usuario en Tokio"] --> AnycastIP["2 IPs Anycast Estáticas"]
-  AnycastIP --> EdgeLocation["Edge Location más cercana"]
-  EdgeLocation --> AWSBackbone["AWS Global Backbone"]
-  AWSBackbone --> ALB["ALB en us-east-1"]
+architecture-beta
+  service user(server)[Usuario en Tokyo]
+  service anycast(internet)[2 IPs Estáticas Anycast]
+  service edge(internet)[Edge Location más cercana]
+  service backbone(cloud)[AWS Global Backbone]
+  service alb(server)["ALB en us-east-1"]
+
+  user:R --> L:anycast
+  anycast:R --> L:edge
+  edge:R --> L:backbone
+  backbone:R --> L:alb
 `} />
 
 ## Conceptos Clave

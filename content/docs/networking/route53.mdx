@@ -13,18 +13,17 @@ Es un **servicio global** (no regional) altamente disponible y escalable que ope
 ## Arquitectura
 
 <Mermaid chart={`
-sequenceDiagram
-  participant Client as Cliente
-  participant Resolver as Route 53 Resolver
-  participant HZ as Hosted Zone
-  participant App as Aplicación (según política)
+architecture-beta
+  service client(server)[Cliente]
+  service resolver(internet)[Route 53 Resolver]
+  service hz(database)[Zona Alojada]
+  service app(server)[Endpoint Aplicación]
 
-  Client->>Resolver: ¿Cuál es la IP de app.example.com?
-  Resolver->>HZ: Consulta DNS
-  HZ->>HZ: Evalúa política de enrutamiento
-  HZ-->>Resolver: IP según política (latency/weighted/failover...)
-  Resolver-->>Client: IP de destino
-  Client->>App: Conexión directa a la IP
+  client:R --> L:resolver
+  resolver:R --> L:hz
+  hz:R --> L:resolver
+  resolver:R --> L:client
+  client:B --> T:app
 `} />
 
 ## Conceptos Clave

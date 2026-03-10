@@ -10,20 +10,25 @@ AWS Site-to-Site VPN is a managed service that establishes an encrypted connecti
 ## Architecture
 
 <Mermaid chart={`
-flowchart LR
-  DC["On-prem Data Center"]
-  CGW["Customer Gateway (CGW)"]
-  T1["Tunnel 1 — Primary AZ"]
-  T2["Tunnel 2 — Secondary AZ"]
-  VGW["Virtual Private Gateway (VGW)"]
-  VPC["VPC"]
+architecture-beta
+  group onprem(server)[On-Premises]
+  group aws(cloud)[AWS VPC]
 
-  DC --> CGW
-  CGW --> T1
-  CGW --> T2
-  T1 --> VGW
-  T2 --> VGW
-  VGW --> VPC
+  service dc(server)[On-Prem Network] in onprem
+  service cgw(disk)["Customer Gateway CGW"] in onprem
+
+  service t1(disk)["Tunnel 1 Primary AZ"]
+  service t2(disk)["Tunnel 2 Secondary AZ"]
+
+  service vgw(internet)["Virtual Private Gateway"] in aws
+  service vpc(cloud)[VPC Resources] in aws
+
+  dc:R --> L:cgw
+  cgw:R --> L:t1
+  cgw:B --> T:t2
+  t1:R --> L:vgw
+  t2:R --> L:vgw
+  vgw:R --> L:vpc
 `} />
 
 ## Key Concepts

@@ -17,19 +17,26 @@ It is a **fully managed AWS service** — you do not need to manage patches, sca
 ## Architecture
 
 <Mermaid chart={`
-flowchart LR
-  EC2A["Private EC2\nAZ-a (10.0.2.5)"]
-  EC2B["Private EC2\nAZ-b (10.0.4.5)"]
-  NATGWA["NAT GW\nPublic Subnet AZ-a\nEIP: 54.1.1.1"]
-  NATGWB["NAT GW\nPublic Subnet AZ-b\nEIP: 54.2.2.2"]
-  IGW["Internet Gateway"]
-  Internet["Internet"]
+architecture-beta
+  group vpc(cloud)[VPC]
 
-  EC2A -->|"0.0.0.0/0"| NATGWA
-  EC2B -->|"0.0.0.0/0"| NATGWB
-  NATGWA --> IGW
-  NATGWB --> IGW
-  IGW --> Internet
+  group az_a(server)["Public + Private AZ-a"] in vpc
+  group az_b(server)["Public + Private AZ-b"] in vpc
+
+  service ec2a(server)["Private EC2 AZ-a 10.0.2.5"] in az_a
+  service natgwa(internet)["NAT GW AZ-a EIP 54.1.1.1"] in az_a
+
+  service ec2b(server)["Private EC2 AZ-b 10.0.4.5"] in az_b
+  service natgwb(internet)["NAT GW AZ-b EIP 54.2.2.2"] in az_b
+
+  service igw(internet)[Internet Gateway] in vpc
+  service internet(cloud)[Internet]
+
+  ec2a:R --> L:natgwa
+  ec2b:R --> L:natgwb
+  natgwa:R --> L:igw
+  natgwb:R --> L:igw
+  igw:R --> L:internet
 `} />
 
 > The high availability pattern requires **one NAT Gateway per AZ**. Each private subnet routes its traffic to the NAT Gateway in its own AZ.

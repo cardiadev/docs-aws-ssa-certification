@@ -13,16 +13,25 @@ AWS offers three modern load balancer types: **ALB** (layer 7), **NLB** (layer 4
 ## Architecture
 
 <Mermaid chart={`
-flowchart TD
-  Internet["Internet"] --> ALB["Application Load Balancer"]
-  ALB --> Listener["Listener :443"]
-  Listener --> Rules["Routing Rules"]
-  Rules --> TG1["Target Group: Web Servers"]
-  Rules --> TG2["Target Group: API Servers"]
-  TG1 --> EC2A["EC2-A"]
-  TG1 --> EC2B["EC2-B"]
-  TG2 --> EC2C["EC2-C"]
-  TG2 --> EC2D["EC2-D"]
+architecture-beta
+  service internet(internet)[Internet]
+  service alb(internet)[Application Load Balancer]
+  service listener(disk)[Listener port 443]
+  service rules(disk)[Routing Rules]
+
+  group tg1(server)[Target Group Web Servers]
+  group tg2(server)[Target Group API Servers]
+
+  service ec2a(server)["EC2-A"] in tg1
+  service ec2b(server)["EC2-B"] in tg1
+  service ec2c(server)["EC2-C"] in tg2
+  service ec2d(server)["EC2-D"] in tg2
+
+  internet:R --> L:alb
+  alb:R --> L:listener
+  listener:R --> L:rules
+  rules:R --> L:tg1
+  rules:B --> T:tg2
 `} />
 
 ## Key Concepts

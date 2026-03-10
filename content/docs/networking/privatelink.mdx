@@ -12,27 +12,27 @@ Existen dos tipos de VPC Endpoints: **Interface Endpoints** (basados en PrivateL
 ## Arquitectura
 
 <Mermaid chart={`
-flowchart LR
-  subgraph Consumer["VPC Consumidora"]
-    EC2["Instancia EC2"]
-    IE["Interface Endpoint\n(ENI en subnet)"]
-    GE["Gateway Endpoint\n(entrada en route table)"]
-  end
+architecture-beta
+  group consumer(cloud)[VPC Consumidor]
+  group provider(cloud)[VPC Proveedor]
 
-  subgraph Provider["VPC Proveedora / Servicio AWS"]
-    NLB["Network Load Balancer"]
-    SVC["Servicio Proveedor"]
-  end
+  service ec2(server)[Instancia EC2] in consumer
+  service ie(disk)[Interface Endpoint ENI] in consumer
+  service ge(disk)[Gateway Endpoint] in consumer
 
-  S3["Amazon S3"]
-  DDB["Amazon DynamoDB"]
+  service nlb(server)[Network Load Balancer] in provider
+  service svc(server)[Servicio Proveedor] in provider
 
-  EC2 --> IE
-  IE -->|"AWS PrivateLink"| NLB --> SVC
+  service s3(database)[Amazon S3]
+  service ddb(database)[Amazon DynamoDB]
 
-  EC2 --> GE
-  GE --> S3
-  GE --> DDB
+  ec2:R --> L:ie
+  ie:R --> L:nlb
+  nlb:R --> L:svc
+
+  ec2:B --> T:ge
+  ge:R --> L:s3
+  ge:B --> T:ddb
 `} />
 
 ## Conceptos Clave

@@ -13,18 +13,15 @@ CloudFront integrates natively with S3, ALB, EC2, and custom HTTP origins. It in
 ## Architecture
 
 <Mermaid chart={`
-sequenceDiagram
-  participant User as User
-  participant EdgeLocation as Edge Location
-  participant Origin as Origin (S3 / ALB)
+architecture-beta
+  service user(server)[User]
+  service edge(internet)[Edge Location Cache]
+  service origin(server)[Origin S3 ALB]
 
-  User->>EdgeLocation: GET /image.jpg
-  EdgeLocation-->>User: Cache HIT (200 OK, from cache)
-
-  User->>EdgeLocation: GET /new-page.html
-  EdgeLocation->>Origin: Cache MISS - forward to origin
-  Origin-->>EdgeLocation: Response + cache headers
-  EdgeLocation-->>User: Response (cached for next request)
+  user:R --> L:edge
+  edge:R --> L:origin
+  origin:B --> T:edge
+  edge:B --> T:user
 `} />
 
 ## Key Concepts

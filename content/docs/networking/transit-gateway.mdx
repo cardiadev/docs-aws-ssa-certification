@@ -10,19 +10,19 @@ description: "Hub central de tránsito de red que reemplaza mallas complejas de 
 ## Arquitectura
 
 <Mermaid chart={`
-flowchart TD
-  TGW{{"Transit Gateway\n(hub central)"}}
-  VPCA["VPC-A\n(Producción)"]
-  VPCB["VPC-B\n(Desarrollo)"]
-  VPCC["VPC-C\n(Seguridad)"]
-  OP["On-Premises\n(via VPN / Direct Connect)"]
-  VPCR["VPC-D\n(otra región via TGW Peering)"]
+architecture-beta
+  service tgw(internet)[Transit Gateway - Hub Central]
+  service vpca(cloud)["VPC-A Producción"]
+  service vpcb(cloud)["VPC-B Desarrollo"]
+  service vpcc(cloud)["VPC-C Seguridad"]
+  service onprem(server)["On-Premises VPN/Direct Connect"]
+  service vpcr(cloud)["VPC-D Otra Región - Peering TGW"]
 
-  VPCA --> TGW
-  VPCB --> TGW
-  VPCC --> TGW
-  OP --> TGW
-  VPCR --> TGW
+  vpca:R --> L:tgw
+  vpcb:B --> T:tgw
+  vpcc:L --> R:tgw
+  onprem:T --> B:tgw
+  vpcr:R --> L:tgw
 `} />
 
 ## Conceptos Clave

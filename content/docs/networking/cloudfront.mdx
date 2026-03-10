@@ -13,18 +13,15 @@ CloudFront se integra de forma nativa con S3, ALB, EC2 y orígenes HTTP personal
 ## Arquitectura
 
 <Mermaid chart={`
-sequenceDiagram
-  participant User as Usuario
-  participant EdgeLocation as Edge Location
-  participant Origin as Origin (S3 / ALB)
+architecture-beta
+  service user(server)[Usuario]
+  service edge(internet)[Edge Location Cache]
+  service origin(server)[Origen S3/ALB]
 
-  User->>EdgeLocation: GET /image.jpg
-  EdgeLocation-->>User: Cache HIT (200 OK, desde caché)
-
-  User->>EdgeLocation: GET /new-page.html
-  EdgeLocation->>Origin: Cache MISS - reenvía al origen
-  Origin-->>EdgeLocation: Respuesta + cabeceras de caché
-  EdgeLocation-->>User: Respuesta (almacenada en caché para la próxima solicitud)
+  user:R --> L:edge
+  edge:R --> L:origin
+  origin:B --> T:edge
+  edge:B --> T:user
 `} />
 
 ## Conceptos Clave

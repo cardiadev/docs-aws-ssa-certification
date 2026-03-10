@@ -13,19 +13,23 @@ Lambda@Edge is deployed **once in us-east-1** and AWS automatically replicates i
 ## Architecture
 
 <Mermaid chart={`
-sequenceDiagram
-  participant User as User
-  participant CF as CloudFront
-  participant Origin as Origin
+architecture-beta
+  service user(server)[User]
+  service cf(internet)[CloudFront Edge Location]
+  service vreq(disk)[1 Viewer Request Trigger]
+  service oreq(disk)[2 Origin Request Trigger]
+  service origin(server)[Origin S3 ALB EC2]
+  service ores(disk)[3 Origin Response Trigger]
+  service vres(disk)[4 Viewer Response Trigger]
 
-  User->>CF: Request
-  CF->>CF: [1] Viewer Request trigger
-  CF->>Origin: Forward (cache miss)
-  CF->>CF: [2] Origin Request trigger
-  Origin-->>CF: Response
-  CF->>CF: [3] Origin Response trigger
-  CF-->>User: Response
-  CF->>CF: [4] Viewer Response trigger
+  user:R --> L:cf
+  cf:R --> L:vreq
+  vreq:R --> L:oreq
+  oreq:R --> L:origin
+  origin:L --> R:ores
+  ores:L --> R:vres
+  vres:L --> R:cf
+  cf:L --> R:user
 `} />
 
 ## Key Concepts

@@ -20,30 +20,27 @@ VPCs are **specific to a single region** and cannot span multiple regions. Withi
 ## Architecture
 
 <Mermaid chart={`
-graph TD
-  Region["AWS Region (us-east-1)"]
-  VPC["VPC (10.0.0.0/16)"]
-  AZ1["AZ us-east-1a"]
-  AZ2["AZ us-east-1b"]
-  PubA["Public Subnet (10.0.1.0/24)"]
-  PrivA["Private Subnet (10.0.2.0/24)"]
-  PubB["Public Subnet (10.0.3.0/24)"]
-  PrivB["Private Subnet (10.0.4.0/24)"]
-  IGW["Internet Gateway"]
-  NATGW["NAT Gateway"]
-  Internet["Internet"]
+architecture-beta
+  group vpc(cloud)["VPC 10.0.0.0/16"]
 
-  Region --> VPC
-  VPC --> AZ1
-  VPC --> AZ2
-  AZ1 --> PubA
-  AZ1 --> PrivA
-  AZ2 --> PubB
-  AZ2 --> PrivB
-  VPC --> IGW
-  IGW --> Internet
-  PubA --> NATGW
-  NATGW --> IGW
+  group az1(server)["AZ us-east-1a"] in vpc
+  group az2(server)["AZ us-east-1b"] in vpc
+
+  service pubA(disk)["Public Subnet 10.0.1.0/24"] in az1
+  service privA(disk)["Private Subnet 10.0.2.0/24"] in az1
+  service pubB(disk)["Public Subnet 10.0.3.0/24"] in az2
+  service privB(disk)["Private Subnet 10.0.4.0/24"] in az2
+
+  service igw(internet)[Internet Gateway] in vpc
+  service natgw(server)[NAT Gateway] in vpc
+  service internet(cloud)[Internet]
+
+  pubA:R --> L:igw
+  pubB:R --> L:igw
+  igw:R --> L:internet
+  privA:R --> L:natgw
+  privB:R --> L:natgw
+  natgw:R --> L:igw
 `} />
 
 ## Key Concepts

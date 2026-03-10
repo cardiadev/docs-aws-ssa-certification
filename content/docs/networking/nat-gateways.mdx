@@ -17,19 +17,26 @@ Es un servicio **completamente administrado por AWS** — no necesitas gestionar
 ## Arquitectura
 
 <Mermaid chart={`
-flowchart LR
-  EC2A["EC2 Privada\nAZ-a (10.0.2.5)"]
-  EC2B["EC2 Privada\nAZ-b (10.0.4.5)"]
-  NATGWA["NAT GW\nSubnet Pública AZ-a\nEIP: 54.1.1.1"]
-  NATGWB["NAT GW\nSubnet Pública AZ-b\nEIP: 54.2.2.2"]
-  IGW["Internet Gateway"]
-  Internet["Internet"]
+architecture-beta
+  group vpc(cloud)[VPC]
 
-  EC2A -->|"0.0.0.0/0"| NATGWA
-  EC2B -->|"0.0.0.0/0"| NATGWB
-  NATGWA --> IGW
-  NATGWB --> IGW
-  IGW --> Internet
+  group az_a(server)["AZ-a Pública + Privada"] in vpc
+  group az_b(server)["AZ-b Pública + Privada"] in vpc
+
+  service ec2a(server)["EC2 Privada AZ-a 10.0.2.5"] in az_a
+  service natgwa(internet)["NAT GW AZ-a EIP 54.1.1.1"] in az_a
+
+  service ec2b(server)["EC2 Privada AZ-b 10.0.4.5"] in az_b
+  service natgwb(internet)["NAT GW AZ-b EIP 54.2.2.2"] in az_b
+
+  service igw(internet)[Internet Gateway] in vpc
+  service internet(cloud)[Internet]
+
+  ec2a:R --> L:natgwa
+  ec2b:R --> L:natgwb
+  natgwa:R --> L:igw
+  natgwb:R --> L:igw
+  igw:R --> L:internet
 `} />
 
 > El patrón de alta disponibilidad requiere **un NAT Gateway por AZ**. Cada subnet privada enruta su tráfico al NAT Gateway de su propia AZ.

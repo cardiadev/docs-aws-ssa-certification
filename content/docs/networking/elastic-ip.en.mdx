@@ -12,15 +12,15 @@ Elastic IPs are **regional**: they exist within an AWS region and cannot be move
 ## Architecture
 
 <Mermaid chart={`
-flowchart LR
-  User["User (Internet)"]
-  EIP["Elastic IP\n54.x.x.x (static)"]
-  EC2A["EC2 Instance A\n10.0.0.5 (private)"]
-  EC2B["EC2 Instance B\n10.0.0.6 (private)"]
+architecture-beta
+  service internet(cloud)[Internet]
+  service eip(internet)["Elastic IP 54.x.x.x"]
+  service ec2a(server)["EC2 Instance A 10.0.0.5 Active"]
+  service ec2b(server)["EC2 Instance B 10.0.0.6 Standby"]
 
-  User -->|"Traffic to 54.x.x.x"| EIP
-  EIP -->|"Normal association"| EC2A
-  EIP -.->|"Remapping (failover)"| EC2B
+  internet:R --> L:eip
+  eip:R --> L:ec2a
+  eip:B --> T:ec2b
 `} />
 
 > Remapping allows you to move the EIP from one instance to another in seconds, redirecting traffic without changing the public IP visible to users.

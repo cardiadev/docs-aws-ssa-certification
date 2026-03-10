@@ -12,17 +12,17 @@ Routing is controlled by **route tables**: sets of rules (routes) that the route
 ## Architecture
 
 <Mermaid chart={`
-flowchart LR
-  EC2["EC2 Instance\n10.0.1.5"]
-  RT["Route Table\nRoute Evaluation"]
-  IGW["IGW\n(Internet)"]
-  Local["VPC Local\n10.0.0.0/16"]
-  VGW["VGW\n(On-premises)"]
+architecture-beta
+  service ec2(server)["EC2 Instance 10.0.1.5"]
+  service rt(disk)[Route Table]
+  service igw(internet)[IGW Internet]
+  service local(cloud)["VPC Local 10.0.0.0/16"]
+  service vgw(server)["VGW On-Premises"]
 
-  EC2 --> RT
-  RT -->|"0.0.0.0/0 → IGW"| IGW
-  RT -->|"10.0.0.0/16 → local"| Local
-  RT -->|"192.168.0.0/16 → VGW"| VGW
+  ec2:R --> L:rt
+  rt:R --> L:igw
+  rt:B --> T:local
+  rt:L --> R:vgw
 `} />
 
 ## Key Concepts

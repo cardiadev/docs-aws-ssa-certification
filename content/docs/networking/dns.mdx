@@ -12,26 +12,20 @@ Además del DNS básico de la VPC, **Route 53 Resolver** proporciona resolución
 ## Arquitectura
 
 <Mermaid chart={`
-sequenceDiagram
-  participant EC2 as EC2 Instance
-  participant DNS as VPC DNS (169.254.169.253)
-  participant R53 as Route 53 Resolver
-  participant PHZ as Private Hosted Zone
-  participant Pub as DNS Público (internet)
+architecture-beta
+  service ec2(server)[Instancia EC2]
+  service vpcdns(disk)["VPC DNS 169.254.169.253"]
+  service r53(internet)[Route 53 Resolver]
+  service phz(database)[Zona Alojada Privada]
+  service pub(cloud)[DNS Público Internet]
 
-  EC2->>DNS: ¿Cuál es la IP de app.internal.com?
-  DNS->>R53: Consulta DNS
-  R53->>PHZ: ¿Existe app.internal.com en alguna PHZ asociada?
-  PHZ-->>R53: Sí → 10.0.1.50
-  R53-->>DNS: 10.0.1.50
-  DNS-->>EC2: 10.0.1.50
-
-  EC2->>DNS: ¿Cuál es la IP de example.com?
-  DNS->>R53: Consulta DNS
-  R53->>Pub: Resolución pública
-  Pub-->>R53: 93.184.216.34
-  R53-->>DNS: 93.184.216.34
-  DNS-->>EC2: 93.184.216.34
+  ec2:R --> L:vpcdns
+  vpcdns:R --> L:r53
+  r53:R --> L:phz
+  phz:B --> T:r53
+  r53:B --> T:vpcdns
+  vpcdns:B --> T:ec2
+  r53:T --> B:pub
 `} />
 
 ## Conceptos Clave

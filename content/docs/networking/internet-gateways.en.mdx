@@ -17,17 +17,17 @@ Fundamental characteristics:
 ## Architecture
 
 <Mermaid chart={`
-flowchart LR
-  EC2["EC2 Instance\nPrivate IP: 10.0.0.5\nPublic IP: 54.12.34.56"]
-  RT["Route Table\n0.0.0.0/0 → IGW"]
-  IGW["Internet Gateway\nNAT: 10.0.0.5 ↔ 54.12.34.56"]
-  Internet["Internet"]
+architecture-beta
+  service ec2(server)["EC2 Private 10.0.0.5 / Public 54.12.34.56"]
+  service rt(disk)["Route Table 0.0.0.0/0 to IGW"]
+  service igw(internet)["Internet Gateway NAT"]
+  service internet(cloud)[Internet]
 
-  EC2 -->|"Outbound packet\nsrc: 10.0.0.5"| RT
-  RT --> IGW
-  IGW -->|"NAT applied\nsrc: 54.12.34.56"| Internet
-  Internet -->|"Response\ndst: 54.12.34.56"| IGW
-  IGW -->|"Reverse NAT\ndst: 10.0.0.5"| EC2
+  ec2:R --> L:rt
+  rt:R --> L:igw
+  igw:R --> L:internet
+  internet:B --> T:igw
+  igw:B --> T:ec2
 `} />
 
 ## Key Concepts

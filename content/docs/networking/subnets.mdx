@@ -12,30 +12,27 @@ La diferencia fundamental entre una subnet pública y una privada es la presenci
 ## Arquitectura
 
 <Mermaid chart={`
-graph TD
-  VPC["VPC (10.0.0.0/16)"]
-  AZ1["AZ us-east-1a"]
-  AZ2["AZ us-east-1b"]
-  PubA["Subnet Pública 10.0.1.0/24"]
-  PrivA["Subnet Privada 10.0.2.0/24"]
-  PubB["Subnet Pública 10.0.3.0/24"]
-  PrivB["Subnet Privada 10.0.4.0/24"]
-  IGW["Internet Gateway"]
-  NATGW["NAT Gateway"]
-  Internet["Internet"]
+architecture-beta
+  group vpc(cloud)["VPC 10.0.0.0/16"]
 
-  VPC --> AZ1
-  VPC --> AZ2
-  AZ1 --> PubA
-  AZ1 --> PrivA
-  AZ2 --> PubB
-  AZ2 --> PrivB
-  PubA --> IGW
-  PubB --> IGW
-  IGW --> Internet
-  PrivA --> NATGW
-  PrivB --> NATGW
-  NATGW --> IGW
+  group az1(server)["AZ us-east-1a"] in vpc
+  group az2(server)["AZ us-east-1b"] in vpc
+
+  service pubA(disk)["Subnet Pública 10.0.1.0/24"] in az1
+  service privA(disk)["Subnet Privada 10.0.2.0/24"] in az1
+  service pubB(disk)["Subnet Pública 10.0.3.0/24"] in az2
+  service privB(disk)["Subnet Privada 10.0.4.0/24"] in az2
+
+  service igw(internet)[Internet Gateway] in vpc
+  service natgw(server)[NAT Gateway] in vpc
+  service internet(cloud)[Internet]
+
+  pubA:R --> L:igw
+  pubB:R --> L:igw
+  igw:R --> L:internet
+  privA:R --> L:natgw
+  privB:R --> L:natgw
+  natgw:R --> L:igw
 `} />
 
 ## Conceptos Clave

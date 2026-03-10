@@ -10,21 +10,27 @@ description: "Dedicated private network connection between your data center and 
 ## Architecture
 
 <Mermaid chart={`
-flowchart LR
-  OP["On-Premises\nData Center"]
-  DXR["DX Router\n(Customer/Partner)"]
-  DXLOC["AWS Direct Connect\nLocation"]
-  BB["AWS Backbone\nNetwork"]
-  PVIF["Private VIF"]
-  PUBVIF["Public VIF"]
-  VPC["VPC\n(Private Resources)"]
-  PUBSVC["AWS Public Services\n(S3, DynamoDB, etc.)"]
+architecture-beta
+  group onprem(server)[On-Premises Data Center]
+  group dxloc(cloud)[AWS Direct Connect Location]
+  group awscloud(cloud)[AWS Cloud]
 
-  OP --> DXR
-  DXR --> DXLOC
-  DXLOC --> BB
-  BB --> PVIF --> VPC
-  BB --> PUBVIF --> PUBSVC
+  service dc(server)[On-Prem Servers] in onprem
+  service dxr(server)[DX Router Customer] in onprem
+  service dxloc_svc(internet)[DX Location] in dxloc
+  service bb(internet)[AWS Backbone Network] in awscloud
+  service pvif(disk)[Private VIF] in awscloud
+  service pubvif(disk)[Public VIF] in awscloud
+  service vpc(server)[VPC Private Resources] in awscloud
+  service pubsvc(database)[AWS Public Services S3 DynamoDB] in awscloud
+
+  dc:R --> L:dxr
+  dxr:R --> L:dxloc_svc
+  dxloc_svc:R --> L:bb
+  bb:B --> T:pvif
+  bb:R --> L:pubvif
+  pvif:R --> L:vpc
+  pubvif:R --> L:pubsvc
 `} />
 
 ## Key Concepts

@@ -15,20 +15,22 @@ Both controls are complementary: traffic must first pass through the subnet's NA
 ## Architecture
 
 <Mermaid chart={`
-graph TD
-  Internet["Internet"]
-  NACL_In["NACL (Inbound)\nSubnet boundary - Stateless"]
-  SG_In["Security Group (Inbound)\nInstance boundary - Stateful"]
-  EC2["EC2 Instance"]
-  SG_Out["Security Group (Outbound)\nStateful - automatic response"]
-  NACL_Out["NACL (Outbound)\nStateless - explicit rule required"]
+architecture-beta
+  group subnet(cloud)[Subnet]
 
-  Internet -->|"Inbound traffic"| NACL_In
-  NACL_In -->|"If ALLOW rule matches"| SG_In
-  SG_In -->|"If ALLOW rule matches"| EC2
-  EC2 -->|"Response"| SG_Out
-  SG_Out -->|"Stateful: automatically permitted"| NACL_Out
-  NACL_Out -->|"Stateless: needs explicit ALLOW rule"| Internet
+  service internet(internet)[Internet]
+  service nacl_in(disk)[NACL Inbound Stateless] in subnet
+  service sg_in(disk)[Security Group Inbound Stateful] in subnet
+  service ec2(server)[EC2 Instance] in subnet
+  service sg_out(disk)[Security Group Outbound Stateful] in subnet
+  service nacl_out(disk)[NACL Outbound Stateless] in subnet
+
+  internet:R --> L:nacl_in
+  nacl_in:R --> L:sg_in
+  sg_in:R --> L:ec2
+  ec2:B --> T:sg_out
+  sg_out:L --> R:nacl_out
+  nacl_out:L --> R:internet
 `} />
 
 ## Key Concepts

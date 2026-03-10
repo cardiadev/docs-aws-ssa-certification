@@ -10,19 +10,19 @@ description: "Network transit hub that replaces complex peering meshes and simpl
 ## Architecture
 
 <Mermaid chart={`
-flowchart TD
-  TGW{{"Transit Gateway\n(central hub)"}}
-  VPCA["VPC-A\n(Production)"]
-  VPCB["VPC-B\n(Development)"]
-  VPCC["VPC-C\n(Security)"]
-  OP["On-Premises\n(via VPN / Direct Connect)"]
-  VPCR["VPC-D\n(other region via TGW Peering)"]
+architecture-beta
+  service tgw(internet)[Transit Gateway]
+  service vpca(cloud)["VPC-A Production"]
+  service vpcb(cloud)["VPC-B Development"]
+  service vpcc(cloud)["VPC-C Security"]
+  service onprem(server)["On-Premises VPN/DX"]
+  service vpcr(cloud)["VPC-D Other Region"]
 
-  VPCA --> TGW
-  VPCB --> TGW
-  VPCC --> TGW
-  OP --> TGW
-  VPCR --> TGW
+  vpca:R --> L:tgw
+  vpcb:B --> T:tgw
+  vpcc:L --> R:tgw
+  onprem:T --> B:tgw
+  vpcr:R --> L:tgw
 `} />
 
 ## Key Concepts

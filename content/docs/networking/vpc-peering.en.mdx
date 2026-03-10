@@ -15,16 +15,14 @@ Peering can be established between VPCs in:
 ## Architecture
 
 <Mermaid chart={`
-graph TD
-  A["VPC-A\n10.0.0.0/16"]
-  B["VPC-B\n10.1.0.0/16"]
-  C["VPC-C\n10.2.0.0/16"]
+architecture-beta
+  service vpc_a(cloud)["VPC-A 10.0.0.0/16"]
+  service vpc_b(cloud)["VPC-B 10.1.0.0/16"]
+  service vpc_c(cloud)["VPC-C 10.2.0.0/16"]
 
-  A <-->|"Peering 1"| B
-  B <-->|"Peering 2"| C
-  A <-->|"Peering 3 — required"| C
-
-  note["Formula: n x n-1 / 2\n3 VPCs = 3 peerings\n4 VPCs = 6 peerings\n10 VPCs = 45 peerings"]
+  vpc_a:R --> L:vpc_b
+  vpc_b:R --> L:vpc_c
+  vpc_a:B --> T:vpc_c
 `} />
 
 ## Key Concepts
