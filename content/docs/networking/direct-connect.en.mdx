@@ -1,62 +1,140 @@
 ---
-title: "Direct Connect"
-description: "AWS Direct Connect — dedicated physical connection between your data center and AWS without traversing the internet."
+title: "AWS Direct Connect"
+description: "Dedicated private network connection between your data center and AWS — does not traverse the internet."
 ---
 
 ## Overview
 
-**AWS Direct Connect (DX)** is a dedicated physical connection between your on-premises network and AWS. Unlike a VPN that travels over the internet, Direct Connect uses a **direct connection** through the AWS backbone, offering higher throughput, lower latency and greater stability.
+**AWS Direct Connect (DX)** is a **dedicated, private network connection** between your on-premises infrastructure and AWS. Unlike a VPN that travels over the public internet, Direct Connect uses a physical connection directly through the AWS backbone, offering higher throughput, low and consistent latency, and greater stability. It is **not encrypted by default**.
 
-## Components
+## Architecture
 
-The Direct Connect architecture has three parts:
+<Mermaid chart={`
+flowchart LR
+  OP["On-Premises\nData Center"]
+  DXR["DX Router\n(Customer/Partner)"]
+  DXLOC["AWS Direct Connect\nLocation"]
+  BB["AWS Backbone\nNetwork"]
+  PVIF["Private VIF"]
+  PUBVIF["Public VIF"]
+  VPC["VPC\n(Private Resources)"]
+  PUBSVC["AWS Public Services\n(S3, DynamoDB, etc.)"]
 
-1. **On-premises network** — your data center with an edge router or firewall
-2. **Direct Connect Location** — a regional data center where AWS has routers available for connection
-3. **AWS Cloud** — your VPCs and AWS public services
+  OP --> DXR
+  DXR --> DXLOC
+  DXLOC --> BB
+  BB --> PVIF --> VPC
+  BB --> PUBVIF --> PUBSVC
+`} />
 
-### Connection Flow
+## Key Concepts
 
-```
-On-premises → Customer Router (DX Location) → Cross Connect → AWS Router (DX Location) → AWS Backbone → VPC / Public services
-```
+### Connection Types
 
-At the DX location:
-- **Customer Router** — your router installed at the DX location
-- **AWS Direct Connect Router** — AWS-owned router
-- **Cross Connect** — the physical connection you purchase between both routers
-
-## Access Types
-
-| Destination | Method |
-|---|---|
-| **Private resources** (private subnets) | Through a VPN Gateway connected to the AWS router at the DX location |
-| **Public services** (S3, etc.) | Directly from the AWS router to AWS public services |
-
-In both cases traffic travels through the **AWS backbone**, not the internet.
-
-## Available Speeds
-
-- **1 Gbps**
-- **10 Gbps**
-- **100 Gbps**
-
-## Direct Connect vs VPN
-
-| Feature | Direct Connect | VPN |
+| Type | Available Speeds | Description |
 |---|---|---|
-| **Medium** | Dedicated physical connection | Internet (IPsec tunnel) |
-| **Latency** | Low and consistent | Variable |
-| **Throughput** | Up to 100 Gbps | Up to 1.25 Gbps per tunnel |
-| **Stability** | High | Depends on ISP |
-| **Setup time** | Weeks/months | Minutes |
-| **Cost** | Higher upfront cost | Lower cost |
+| **Dedicated Connection** | 1 Gbps, 10 Gbps, 100 Gbps | Direct physical connection between your router and the AWS router at the DX location. Contracted directly with AWS. |
+| **Hosted Connection** | 50 Mbps to 10 Gbps | Connection provided by an AWS Direct Connect Partner. More flexible for lower speeds. Capacity on demand. |
 
-## Pricing
+- **Dedicated Connections** offer higher guaranteed bandwidth and are ideal for mission-critical production workloads.
+- **Hosted Connections** provision faster and are suitable when a dedicated connection is not justified.
 
-- Charged per **port hours** used
-- Charged for **egress data** out
+### Virtual Interfaces (VIFs)
+
+VIFs are logical interfaces created on top of the physical DX connection to segment traffic by destination:
+
+| VIF | Destination | Description |
+|---|---|---|
+| **Private VIF** | Private resources in a VPC | Connects directly to resources in private VPC subnets using a private IP address. Requires a VGW or Direct Connect Gateway. |
+| **Public VIF** | AWS public services | Allows access to AWS public endpoints (S3, DynamoDB, SQS, etc.) without traversing the internet. Uses AWS public IPs. |
+| **Transit VIF** | Transit Gateway | Connects the DX connection to a Transit Gateway, enabling access to multiple VPCs from a single DX connection. |
+
+### Direct Connect Gateway
+
+Allows using a **single Direct Connect connection** to reach VPCs in **multiple AWS regions**:
+
+- No additional cost for the gateway itself.
+- You can associate up to 10 VGWs from different regions to a single DX Gateway.
+- Requires a **Private VIF** between the DX connection and the DX Gateway.
+- Also supports **Transit VIF** with Transit Gateway.
+
+### Resiliency Models
+
+AWS defines four official resiliency levels for Direct Connect:
+
+| Model | Description | Recommended For |
+|---|---|---|
+| **Maximum Resiliency** | 2 DX locations, 2 connections per location (4 total). | Mission-critical workloads that cannot tolerate any interruption. |
+| **High Resiliency** | 2 DX locations, 1 connection per location (2 total). | High availability with geographic redundancy. |
+| **Development and Test** | 1 DX location, 2 connections at that location. | Dev/test environments with some local redundancy. |
+| **Non-redundant (basic)** | 1 connection, 1 location. | Not recommended for production. |
+
+### Encryption
+
+**Direct Connect is NOT encrypted by default.** The connection is private (does not traverse the internet) but data travels in plain text over the physical connection.
+
+To add encryption:
+- **VPN over Direct Connect:** establish an IPSec tunnel (Site-to-Site VPN) over the DX connection. Combines DX's low latency with IPSec encryption.
+- **MACsec:** Layer 2 encryption available on dedicated connections of 10 Gbps and 100 Gbps. Encrypts data at the physical connection level.
+
+## Comparison: DX Dedicated vs DX Hosted vs VPN
+
+| Feature | DX Dedicated | DX Hosted | Site-to-Site VPN |
+|---|---|---|---|
+| **Bandwidth** | 1 / 10 / 100 Gbps | 50 Mbps – 10 Gbps | Up to 1.25 Gbps/tunnel |
+| **Provisioning Time** | Weeks to months | Days to weeks | Minutes |
+| **Cost** | High | Medium | Low |
+| **Encryption** | No (by default) | No (by default) | Yes (IPSec) |
+| **Reliability** | Very high | High | Medium (depends on internet) |
+| **Latency** | Low and consistent | Low and consistent | Variable |
+| **Traffic** | AWS private network | AWS private network | Public internet |
+
+## Use Cases
+
+| Use Case | Why Direct Connect |
+|---|---|
+| **Massive data transfers** | Guaranteed high throughput (up to 100 Gbps) without internet variability. |
+| **Latency-sensitive applications** | Consistent, low latency for databases, ERP, SAP running in AWS. |
+| **Regulatory compliance** | Some standards require that data not traverse the internet. |
+| **Access to AWS public services** | Access S3, DynamoDB, etc. without going through the internet (via Public VIF). |
+| **Mission-critical production** | Higher SLA and stability than VPN for 24/7 workloads. |
+
+## Configuration Steps
+
+1. **Request the connection:** in the AWS console, request a Dedicated Connection or work with an APN Partner for a Hosted Connection.
+2. **Physical installation:** a technician installs cables at the DX location (cross-connect between the customer router and the AWS router). This process takes weeks.
+3. **Create a Virtual Interface (VIF):** choose Private VIF (for VPC), Public VIF (for public AWS services), or Transit VIF (for TGW).
+4. **Configure BGP:** the BGP session between the on-premises router and the AWS router is mandatory. Configure the ASNs and routes to advertise.
+5. **Associate to a gateway:** connect the Private VIF to a VGW (attached to your VPC) or to a Direct Connect Gateway (for multiple VPCs/regions).
+6. **Verify the BGP session:** confirm the BGP session is active and the correct routes are being exchanged.
+7. **Test connectivity:** verify that on-premises resources can reach VPC resources and vice versa.
 
 <Callout type="warn">
-**For the SAA-C03 exam:** Direct Connect is a physical connection (not over the internet) offering higher throughput and lower latency than a VPN. Charged per port hours + egress data. Supports access to both private resources and AWS public services through the AWS backbone.
+**Exam Tips — SAA-C03:**
+
+- **Direct Connect is NOT encrypted by default.** If the exam asks for a private AND encrypted connection, the answer is VPN over Direct Connect (or MACsec for 10/100 Gbps).
+- **Private VIF to connect to your VPC** (private resources). **Public VIF to access AWS public services** (S3, DynamoDB). Memorize this distinction.
+- **Transit VIF + Transit Gateway:** if you need to connect a single DX connection to multiple VPCs, use Transit VIF toward a TGW.
+- **Direct Connect Gateway:** allows using a single DX connection to reach VPCs in multiple regions.
+- **Provisioning time:** can take weeks or months. If the scenario requires immediate connectivity, VPN is the correct answer.
+- **Maximum Resiliency = 2 DX locations, 2 connections per location** (4 connections total). This is the highest availability level for DX.
+- **DX + VPN as failover:** the recommended pattern is to use DX as primary and Site-to-Site VPN as backup.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — AWS Direct Connect:**
+
+| Property | Value |
+|---|---|
+| **Bandwidth (Dedicated)** | 1 Gbps / 10 Gbps / 100 Gbps |
+| **Bandwidth (Hosted)** | 50 Mbps – 10 Gbps |
+| **Encryption** | No by default (use VPN over DX or MACsec) |
+| **Provisioning time** | Weeks to months |
+| **VIF types** | 3: Private VIF / Public VIF / Transit VIF |
+| **Private VIF** | Connects to VPC (private resources) |
+| **Public VIF** | Connects to AWS public services (S3, DynamoDB) |
+| **Transit VIF** | Connects to Transit Gateway |
+| **Direct Connect Gateway** | One DX connection to multiple VPCs in different regions |
+| **Routing protocol** | BGP (mandatory) |
+| **Maximum Resiliency** | 2 DX locations, 2 connections each |
 </Callout>

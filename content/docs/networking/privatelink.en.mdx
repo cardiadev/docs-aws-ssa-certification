@@ -1,32 +1,162 @@
 ---
-title: "PrivateLink"
-description: "AWS PrivateLink — private access to AWS and third-party services without traversing the internet."
+title: "AWS PrivateLink & VPC Endpoints"
+description: "Private connectivity to AWS services and third-party services without traversing the internet — Interface Endpoints and Gateway Endpoints."
 ---
 
 ## Overview
 
-**AWS PrivateLink** (also known as VPC Endpoints) allows resources in your VPC to access AWS public services (like S3, CloudWatch) and services in other VPCs **without needing to go through the internet**.
+**AWS PrivateLink** and **VPC Endpoints** allow resources inside your VPC to access AWS services and third-party services **privately, without going through the internet**. Instead of routing traffic over the internet (using an Internet Gateway or NAT Gateway), traffic stays within the AWS network using private IP addresses.
 
-## The Problem it Solves
+There are two types of VPC Endpoints: **Interface Endpoints** (powered by PrivateLink) and **Gateway Endpoints**.
 
-If you have an EC2 instance in a private subnet that needs to access S3, you would normally need an Internet Gateway or NAT Gateway to give it internet access. This unnecessarily exposes your resource.
+## Architecture
 
-**PrivateLink** eliminates this need: it provides a direct, private connection to AWS services through the AWS internal network.
+<Mermaid chart={`
+flowchart LR
+  subgraph Consumer["Consumer VPC"]
+    EC2["EC2 Instance"]
+    IE["Interface Endpoint\n(ENI in subnet)"]
+    GE["Gateway Endpoint\n(route table entry)"]
+  end
+
+  subgraph Provider["Provider VPC / AWS Service"]
+    NLB["Network Load Balancer"]
+    SVC["Provider Service"]
+  end
+
+  S3["Amazon S3"]
+  DDB["Amazon DynamoDB"]
+
+  EC2 --> IE
+  IE -->|"AWS PrivateLink"| NLB --> SVC
+
+  EC2 --> GE
+  GE --> S3
+  GE --> DDB
+`} />
+
+## Key Concepts
+
+### Interface Endpoints vs Gateway Endpoints
+
+| Feature | Interface Endpoint | Gateway Endpoint |
+|---|---|---|
+| **Technology** | ENI (Elastic Network Interface) in your subnet | Entry in the subnet route table |
+| **Cost** | Yes — hourly fee + data processed | Free |
+| **Supported services** | Most AWS services + third-party services | Only **S3** and **DynamoDB** |
+| **Private DNS** | Yes — DNS names resolve to private IPs | Not applicable |
+| **Security** | Endpoint policies + security groups | Endpoint policies only |
+| **High availability** | Deploy one ENI per AZ | Automatic (managed by AWS) |
+| **Implementation** | Created in specific subnets | Configured in route tables |
+
+### Consumer and Provider Roles (PrivateLink)
+
+PrivateLink defines a two-role model for publishing and consuming services:
+
+**Consumer (Consumer VPC):**
+- Creates an **Interface Endpoint** in their VPC pointing to the provider's service.
+- Accesses the service using the endpoint's private ENI — no special routes or peering needed.
+- Can control access with **Endpoint Policies** (IAM-style policies).
+
+**Provider (Provider VPC):**
+- Creates a **Network Load Balancer (NLB)** in front of their service.
+- Creates a **VPC Endpoint Service** associated with the NLB.
+- Controls which accounts or principals can create endpoints to their service (allowlist).
+- Can require **manual approval** for each connection request.
+
+### Endpoint Policies
+
+**Endpoint Policies** are IAM-style resource policies attached directly to the endpoint:
+
+- Control what operations the traffic passing through the endpoint can perform.
+- Are additive with the user's IAM policies (both must allow the action).
+- Example: you can create an S3 endpoint that only allows `s3:GetObject` operations on a specific bucket.
+- They do not replace bucket policies or IAM policies — they are an additional control layer.
+
+### Private DNS
+
+When you enable **Private DNS** on an Interface Endpoint:
+
+- The service's DNS name (e.g., `s3.us-east-1.amazonaws.com`) automatically resolves to the **private IP** of the endpoint's ENI within your VPC.
+- Applications do not need to change their configuration — they continue using the same AWS DNS endpoint.
+- Requires the VPC to have **DNS hostnames** and **DNS resolution** enabled.
+- Only works within the VPC where the endpoint was created (and VPCs connected by peering with the DNS option enabled).
+
+### PrivateLink vs VPC Peering
+
+| Feature | AWS PrivateLink | VPC Peering |
+|---|---|---|
+| **Traffic direction** | One-way (consumer → provider) | Bidirectional |
+| **Route table changes** | Not needed | Yes, on both sides |
+| **Overlapping CIDRs** | Works even with overlapping CIDRs | Not allowed |
+| **Provider visibility** | Provider cannot see consumer's network | Both networks are mutually visible |
+| **Use cases** | Publishing/consuming private services | General connectivity between VPCs |
+| **Scalability** | One endpoint per service | Limited by peering mesh |
+
+## Comparison: Interface Endpoint vs Gateway Endpoint
+
+| Aspect | Interface Endpoint | Gateway Endpoint |
+|---|---|---|
+| **Price** | ~$0.01/hr per AZ + $0.01/GB processed | Free |
+| **Services** | Most AWS services + third-party | Only S3 and DynamoDB |
+| **Method** | ENI in subnet with private IP | Route in route table |
+| **Private DNS** | Yes, automatic | No |
+| **Security groups** | Yes, applicable | No |
+| **Scope** | All VPCs in the region | Only within the region |
 
 ## Use Cases
 
-- **Access AWS services** — connect to S3, CloudWatch, DynamoDB, etc. from private subnets without internet
-- **Access services in other VPCs** — connect to third-party or cross-account services using private IPs, as if they were in your own VPC
-- **Third-party services** — access SaaS services that support PrivateLink without exposing your network
+| Use Case | Endpoint Type | Description |
+|---|---|---|
+| **Private EC2 accesses S3** | Gateway Endpoint | No cost, no code changes. Adds route to route table. |
+| **Private Lambda accesses DynamoDB** | Gateway Endpoint | No cost, keeps traffic within AWS. |
+| **EC2 accesses CloudWatch without NAT** | Interface Endpoint | Eliminates NAT Gateway cost and need. |
+| **Consume a private SaaS service** | Interface Endpoint | Partner publishes their service via PrivateLink. |
+| **Access Secrets Manager from private VPC** | Interface Endpoint | No internet gateway or NAT needed. |
 
-## How it Works
+## Configuration Steps
 
-**VPC Endpoints** facilitate communication between your VPC and services:
+**Gateway Endpoint (S3 or DynamoDB):**
+1. In the VPC console, select "Endpoints" and choose Gateway type.
+2. Select the service (S3 or DynamoDB) and the VPC.
+3. Select the route tables of the subnets that should use the endpoint.
+4. AWS automatically adds a route in those route tables with the service prefix and the endpoint as the target.
+5. (Optional) Configure an Endpoint Policy to restrict access.
 
-- Traffic never leaves the AWS network
-- Services appear as if they are directly connected to your VPC
-- **Private IP addresses** are used for communication
+**Interface Endpoint (PrivateLink):**
+1. In the VPC console, select "Endpoints" and choose Interface type.
+2. Select the AWS service or the provider's Endpoint Service.
+3. Select the VPC and subnets (one per AZ recommended).
+4. Assign security groups that control inbound traffic to the endpoint.
+5. Enable **Private DNS** if you want the service's DNS name to resolve to the private IP.
+6. (Optional) Configure an Endpoint Policy.
 
 <Callout type="warn">
-**For the SAA-C03 exam:** PrivateLink allows access to AWS services (S3, CloudWatch, etc.) from private subnets without needing an Internet Gateway or NAT Gateway. Traffic stays within the AWS network. It also allows connecting to services in other VPCs using private IPs.
+**Exam Tips — SAA-C03:**
+
+- **Gateway Endpoints are FREE for S3 and DynamoDB.** If the scenario asks for the most cost-effective way for private instances to access S3, the answer is Gateway Endpoint (not Interface Endpoint, not NAT Gateway).
+- **Interface Endpoints have a cost:** charged per hour per AZ and per data processed. Required for all AWS services other than S3 and DynamoDB.
+- **PrivateLink works with overlapping CIDRs:** unlike VPC Peering, PrivateLink does not require unique CIDRs. Ideal when CIDRs overlap.
+- **Private DNS must be enabled in the VPC:** if the exam mentions applications using the standard AWS DNS name and traffic must go through the private endpoint, verify that DNS hostnames and DNS resolution are enabled in the VPC.
+- **Endpoint Policy ≠ IAM Policy:** the Endpoint Policy controls what traffic passing through the endpoint can do. It is an additional control layer, not a replacement for IAM.
+- **PrivateLink is one-directional:** the provider cannot initiate connections to the consumer. Only the consumer can initiate traffic toward the provider's service.
+- **NLB is required on the provider side:** to publish a service via PrivateLink, the provider MUST have a Network Load Balancer (not ALB).
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — AWS PrivateLink & VPC Endpoints:**
+
+| Property | Value |
+|---|---|
+| **Gateway Endpoint — Services** | S3 and DynamoDB only |
+| **Gateway Endpoint — Cost** | Free |
+| **Gateway Endpoint — Method** | Route table entry |
+| **Interface Endpoint — Services** | Most AWS services + third-party |
+| **Interface Endpoint — Cost** | ~$0.01/hr/AZ + $0.01/GB |
+| **Interface Endpoint — Method** | ENI in subnet with private IP |
+| **Private DNS** | Interface Endpoints only |
+| **Overlapping CIDRs** | PrivateLink supports them (Peering does not) |
+| **Provider requires** | NLB + VPC Endpoint Service |
+| **Endpoint Policy** | Additional IAM-style control layer |
+| **Traffic** | Never leaves the AWS network |
 </Callout>

@@ -1,45 +1,139 @@
 ---
 title: "Internet Gateways"
-description: "Puertas de enlace a internet — cómo hacer una subnet pública y habilitar conectividad a internet."
+description: "Puertas de enlace a internet — NAT de IPs privadas a públicas, Egress-Only IGW para IPv6 y requisitos de acceso a internet."
 ---
 
 ## Resumen
 
-Un **Internet Gateway (IGW)** es el componente que permite a los recursos dentro de una VPC comunicarse con internet. Cuando creas una subnet, por defecto es **privada** — los dispositivos no pueden hablar con internet ni viceversa. Para hacerla pública necesitas un Internet Gateway.
+Un **Internet Gateway (IGW)** es el componente que permite a los recursos dentro de una VPC comunicarse con internet. Actúa como puerta de entrada y salida entre la VPC y el internet público. Sin un IGW, todos los recursos de una VPC son privados y sin acceso a internet.
 
-## Características Principales
-
-- Se adjunta a una **VPC** y es **region-resilient** (cubre todas las AZs de la región)
+Características fundamentales:
+- Se adjunta a una **VPC** (no a una subnet) y es **region-resilient** (cubre todas las AZs de la región)
 - Una VPC puede tener **máximo un** Internet Gateway
 - Un Internet Gateway solo puede estar adjunto a **una VPC** a la vez
-- Si una VPC no tiene IGW, **todas** sus subnets son privadas
+- Es un servicio **completamente administrado** y **altamente disponible** por AWS — no es un cuello de botella
+- No tiene límite de ancho de banda — escala horizontalmente
 
-## Cómo Hacer una Subnet Pública
+## Arquitectura
 
-Convertir una subnet privada en pública requiere estos pasos:
+<Mermaid chart={`
+flowchart LR
+  EC2["EC2 Instance\nIP Privada: 10.0.0.5\nIP Pública: 54.12.34.56"]
+  RT["Route Table\n0.0.0.0/0 → IGW"]
+  IGW["Internet Gateway\nNAT: 10.0.0.5 ↔ 54.12.34.56"]
+  Internet["Internet"]
 
-1. **Crear** un Internet Gateway
-2. **Adjuntarlo** a la VPC
-3. **Crear una route table personalizada** con una ruta por defecto (`0.0.0.0/0`) apuntando al IGW
-4. **Asociar** la subnet a esa route table
+  EC2 -->|"Paquete saliente\nsrc: 10.0.0.5"| RT
+  RT --> IGW
+  IGW -->|"NAT aplicado\nsrc: 54.12.34.56"| Internet
+  Internet -->|"Respuesta\ndst: 54.12.34.56"| IGW
+  IGW -->|"NAT inverso\ndst: 10.0.0.5"| EC2
+`} />
 
-Una vez completados estos pasos, los recursos en esa subnet tendrán acceso a internet.
+## Conceptos Clave
 
-## IP Pública y Privada
+### NAT en el IGW
 
-Cuando despliegas un recurso en una subnet pública, por defecto solo recibe una **IP privada**. Para que sea accesible desde internet necesitas habilitar la **asignación automática de IP pública**.
+El Internet Gateway realiza **traducción de direcciones de red (NAT)** para instancias con IP pública:
 
-Una vez habilitada, el recurso tendrá ambas IPs:
+- **Tráfico saliente**: el IGW reemplaza la IP privada de origen (`10.0.0.5`) con la IP pública asociada (`54.12.34.56`)
+- **Tráfico entrante**: el IGW reemplaza la IP pública de destino (`54.12.34.56`) con la IP privada correspondiente (`10.0.0.5`)
 
-- **IP privada** (ej: `192.168.1.1`) — la que el recurso conoce
-- **IP pública** (ej: `1.1.1.1`) — asociada por AWS al recurso
+**Importante**: la instancia EC2 **no sabe que tiene IP pública**. El sistema operativo solo ve la IP privada. El IGW hace el NAT de forma transparente. Puedes verificarlo: dentro de una EC2, `ifconfig` solo muestra la IP privada.
 
-<Callout type="info">
-**El recurso no sabe que tiene IP pública.** Si accedes a la consola de tu EC2, solo verás la IP privada. AWS se encarga de traducir (NAT) las solicitudes de la IP pública a la privada de forma transparente.
-</Callout>
+Para **Elastic IPs** (IPs estáticas), el mismo mecanismo aplica: el IGW mapea la EIP a la IP privada de la instancia.
 
-La IP pública está **vinculada a la IP privada** de la interfaz de red. Si tienes múltiples interfaces, cada una puede tener su propia IP pública asociada.
+### Requisitos para Acceso a Internet
+
+Para que una instancia EC2 tenga acceso a internet, se deben cumplir **4 requisitos**:
+
+| # | Requisito | Descripción |
+|---|---|---|
+| 1 | **IP pública o Elastic IP** | La instancia debe tener una IP pública asociada |
+| 2 | **Ruta hacia el IGW** | La route table de la subnet debe tener `0.0.0.0/0 → IGW` |
+| 3 | **Security Group permite** | El SG debe permitir el tráfico de salida (y entrada si aplica) |
+| 4 | **NACL permite** | La NACL debe permitir el tráfico tanto de entrada como de salida (incluyendo puertos efímeros) |
+
+Si falta cualquiera de estos 4, la instancia no tendrá acceso a internet.
+
+### Egress-Only Internet Gateway
+
+El **Egress-Only Internet Gateway** es una variante del IGW diseñada exclusivamente para **tráfico IPv6 saliente**:
+
+| Característica | Internet Gateway | Egress-Only IGW |
+|---|---|---|
+| **Protocolo** | IPv4 e IPv6 | Solo IPv6 |
+| **Dirección** | Bidireccional | Solo saliente (egress) |
+| **Conexiones entrantes** | Permitidas (si hay IP pública) | Bloqueadas |
+| **Estado** | Stateful | Stateful |
+| **Propósito** | Acceso completo a internet | NAT para IPv6 privadas |
+
+Como las IPs IPv6 son públicamente enrutables, necesitas el Egress-Only IGW para dar acceso a internet saliente a instancias con IPv6 **sin permitir** que internet inicie conexiones hacia ellas (similar al rol del NAT Gateway para IPv4).
+
+## Comparativa: IGW vs Egress-Only IGW
+
+| Propiedad | Internet Gateway | Egress-Only IGW |
+|---|---|---|
+| **Protocolo** | IPv4 + IPv6 | IPv6 únicamente |
+| **Dirección de tráfico** | Bidireccional | Solo saliente |
+| **Tráfico entrante** | Sí (requiere IP pública) | No |
+| **Stateful** | Sí | Sí |
+| **VPCs por IGW** | 1 | 1 |
+| **IGWs por VPC** | 1 | 1 |
+| **Caso de uso** | Subnets públicas con IPv4/IPv6 | Subnets privadas con IPv6 |
+| **Alternativa IPv4** | N/A | NAT Gateway |
+
+## Configuración
+
+Para hacer una subnet pública usando el IGW:
+
+1. **Crear el Internet Gateway**:
+   - Navega a **VPC → Internet Gateways → Create internet gateway**
+   - Asigna un nombre y haz clic en **Create**
+
+2. **Adjuntar el IGW a la VPC**:
+   - Selecciona el IGW recién creado
+   - Haz clic en **Actions → Attach to VPC**
+   - Selecciona tu VPC y confirma
+
+3. **Configurar la route table**:
+   - Crea o edita una route table personalizada para la subnet pública
+   - Agrega la ruta: `Destination: 0.0.0.0/0` → `Target: igw-xxxxxxxx`
+   - Si usas IPv6: agrega `Destination: ::/0` → `Target: igw-xxxxxxxx`
+
+4. **Asociar la subnet**:
+   - Asocia la subnet pública a la route table con la ruta al IGW
+
+5. **Habilitar IP pública automática** (opcional):
+   - En la subnet pública, edita la configuración y activa **Auto-assign public IPv4 address**
+
+Para el **Egress-Only IGW** (IPv6):
+- Crea el Egress-Only IGW desde **VPC → Egress-Only Internet Gateways**
+- Agrega la ruta IPv6 a la route table de la subnet privada: `::/0 → eigw-xxxxxxxx`
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Una subnet es pública cuando tiene una ruta por defecto apuntando al Internet Gateway. Solo se necesita un IGW por VPC y es region-resilient. Recuerda que el recurso necesita una IP pública para ser accesible desde internet.
+**Consejos para el examen SAA-C03:**
+- El IGW es **region-resilient** — no necesitas uno por AZ, uno por VPC es suficiente.
+- Una VPC puede tener **solo un IGW** adjunto a la vez. No hay forma de agregar un segundo.
+- Para que una instancia acceda a internet necesitas los **4 requisitos**: IP pública, ruta al IGW, SG permite, NACL permite.
+- El IGW hace NAT **de forma transparente** — la instancia EC2 solo ve su IP privada.
+- Para IPv6 saliente desde subnets privadas, usa el **Egress-Only IGW**, no el NAT Gateway (NAT GW no maneja IPv6).
+- El IGW es un servicio administrado — **no tiene cuello de botella de ancho de banda**.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Internet Gateways:**
+
+| Propiedad | Valor |
+|---|---|
+| IGWs por VPC | 1 máximo |
+| VPCs por IGW | 1 |
+| Resilencia | Region-resilient (cubre todas las AZs) |
+| Gestionado por | AWS (sin administración requerida) |
+| Ancho de banda | Sin límite (escala automáticamente) |
+| NAT realizado | IP privada ↔ IP pública/EIP |
+| Requisitos de acceso | IP pública + ruta IGW + SG + NACL |
+| Egress-Only IGW | Solo IPv6 saliente |
+| IPv6 en IGW normal | Soportado (bidireccional) |
+| Costo | Sin costo por el IGW (se cobra por transferencia de datos) |
 </Callout>

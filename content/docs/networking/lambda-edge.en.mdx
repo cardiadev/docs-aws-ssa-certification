@@ -1,54 +1,226 @@
 ---
-title: "Lambda@Edge"
-description: "CloudFront Functions and Lambda@Edge — running code at edge locations to manipulate requests and responses."
+title: Lambda@Edge
+description: "Lambda@Edge — run Lambda functions at CloudFront edge locations with 4 trigger points for the SAA-C03 exam."
 ---
+
 
 ## Overview
 
-**CloudFront Functions** and **Lambda@Edge** allow you to run code at CloudFront edge locations, as close to your users as possible. They can manipulate requests and responses flowing through CloudFront without needing a backend server.
+**Lambda@Edge** lets you run Lambda functions at **CloudFront edge locations** without managing servers. Code executes in response to CloudFront events, as close as possible to the user, reducing latency and enabling global-scale customization.
 
-## When They Execute
+Lambda@Edge is deployed **once in us-east-1** and AWS automatically replicates it to all edge locations worldwide.
 
-### CloudFront Functions
+## Architecture
 
-- When a **request is received** from the viewer (user)
-- Before **sending a response** to the viewer
+<Mermaid chart={`
+sequenceDiagram
+  participant User as User
+  participant CF as CloudFront
+  participant Origin as Origin
 
-### Lambda@Edge
+  User->>CF: Request
+  CF->>CF: [1] Viewer Request trigger
+  CF->>Origin: Forward (cache miss)
+  CF->>CF: [2] Origin Request trigger
+  Origin-->>CF: Response
+  CF->>CF: [3] Origin Response trigger
+  CF-->>User: Response
+  CF->>CF: [4] Viewer Response trigger
+`} />
 
-- When a **request is received** from the viewer
-- When CloudFront **forwards a request to the origin**
-- When a **response is received from the origin**
-- Before **sending a response** to the viewer
+## Key Concepts
 
-## Comparison
+### 4 Trigger Points
+
+Each trigger can modify different parts of the request lifecycle:
+
+| Trigger | When it runs | Can modify |
+|---|---|---|
+| **Viewer Request** | Before checking the cache | Request headers, URI, query string |
+| **Origin Request** | Before forwarding to origin (cache miss) | Origin request, headers, URI |
+| **Origin Response** | After receiving the origin response | Response headers, status code, body |
+| **Viewer Response** | Before sending response to user | Response headers, status code |
+
+### Limits per Trigger
+
+| Trigger | Max Timeout | Max Memory | Package Size |
+|---|---|---|---|
+| **Viewer Request** | 5 seconds | 128 MB | 1 MB |
+| **Viewer Response** | 5 seconds | 128 MB | 1 MB |
+| **Origin Request** | 30 seconds | 10,240 MB | 50 MB |
+| **Origin Response** | 30 seconds | 10,240 MB | 50 MB |
+
+### us-east-1 Requirement
+
+- Lambda@Edge functions **must be created and published in us-east-1** (N. Virginia).
+- AWS **automatically replicates** them to all edge locations globally.
+- It is not possible to create Lambda@Edge functions from other regions.
+- A **published version** (not $LATEST) is required to associate with CloudFront.
+
+### Supported Runtimes
+
+Lambda@Edge **only supports Node.js and Python**. Go, Java, .NET, and other standard Lambda runtimes are not available.
+
+| Runtime | Lambda@Edge Support |
+|---|---|
+| Node.js | Yes |
+| Python | Yes |
+| Java | No |
+| Go | No |
+| .NET / C# | No |
+| Ruby | No |
+
+### CloudFront Functions vs Lambda@Edge
 
 | Feature | CloudFront Functions | Lambda@Edge |
 |---|---|---|
-| **Duration** | Sub-millisecond | Milliseconds or more |
-| **CPU/Memory** | Fixed, lightweight | Adjustable |
+| **Runtime** | JavaScript (ES5.1) | Node.js / Python |
+| **Max execution time** | < 1 ms | 5 s (viewer) / 30 s (origin) |
+| **Max memory** | 2 MB | 128 MB (viewer) / 10,240 MB (origin) |
+| **Code size** | 10 KB | 1 MB (viewer) / 50 MB (origin) |
 | **Network access** | No | Yes |
-| **Filesystem access** | No | Yes |
-| **External libraries** | No | Yes (AWS SDK, etc.) |
-| **HTTP body access** | No | Yes |
+| **Filesystem access** | No | Yes (read-only /tmp) |
+| **HTTP body** | No | Yes (Origin Request/Response only) |
+| **Available triggers** | Viewer Request / Response | All 4 triggers |
+| **Cost** | Very low | Higher |
+| **Use case** | Simple headers, redirects, rewrites | Auth, A/B testing, complex logic |
 
 ## Use Cases
 
-### CloudFront Functions
+| Use Case | Recommended Trigger | Tool |
+|---|---|---|
+| **A/B Testing** | Origin Request | Lambda@Edge |
+| **JWT Authentication** | Viewer Request | Lambda@Edge or CF Functions |
+| **URL Rewriting** | Viewer Request | CloudFront Functions |
+| **Bot Detection** | Viewer Request | Lambda@Edge |
+| **Header Personalization** | Origin Request / Viewer Response | Lambda@Edge |
+| **HTTP→HTTPS Redirects** | Viewer Request | CloudFront Functions |
+| **Cache Key Normalization** | Viewer Request | CloudFront Functions |
+| **Dynamic Response Generation** | Origin Response | Lambda@Edge |
 
-- **Cache key normalization** — transform HTTP attributes to improve cache hit ratio
-- **Header manipulation** — insert, modify or delete HTTP headers
-- **URL redirects and rewrites**
-- **Request authorization** — validate JWT tokens by inspecting authorization headers
+## Comparison: Lambda@Edge vs CloudFront Functions
 
-### Lambda@Edge
+| Aspect | CloudFront Functions | Lambda@Edge |
+|---|---|---|
+| **Complexity** | Low | High |
+| **Performance** | Ultra-fast (sub-ms) | Fast (ms to seconds) |
+| **Cost per 1M invocations** | ~$0.10 | ~$0.60 (viewer) / more (origin) |
+| **External dependencies** | Not allowed | Yes (libraries, AWS SDK) |
+| **AWS service calls** | No | Yes |
+| **Geolocation data** | Yes (CF headers) | Yes |
+| **Best for** | Simple high-volume operations | Complex logic with side effects |
 
-- **Long-running functions** (several milliseconds or more)
-- Functions that need **adjustable CPU or memory**
-- Functions that depend on **external libraries** (AWS SDK, etc.)
-- Functions that need **network access** for external services
-- Functions that need **filesystem access** or access to the HTTP request body
+## Execution Model
+
+### Request lifecycle with Lambda@Edge
+
+```
+User
+  │
+  ▼
+[1] Viewer Request trigger ──── (can respond directly without going to origin)
+  │
+  ▼
+CloudFront cache check
+  │ cache miss
+  ▼
+[2] Origin Request trigger ──── (can modify the request to origin)
+  │
+  ▼
+Origin Server (S3, ALB, EC2)
+  │
+  ▼
+[3] Origin Response trigger ─── (can modify the origin response)
+  │
+  ▼
+CloudFront caches the response
+  │
+  ▼
+[4] Viewer Response trigger ─── (can modify the final response to user)
+  │
+  ▼
+User receives response
+```
+
+### Generating responses without going to origin
+
+The **Viewer Request** and **Origin Request** triggers can **generate a response directly** without forwarding the request to the origin. This is useful for:
+
+- Blocking unauthorized requests before they reach the origin.
+- Returning static cached content from the function.
+- Implementing feature flags or redirects without server load.
+
+## IAM Permissions
+
+The Lambda@Edge execution role requires a **trust policy** authorizing both Lambda and CloudFront edge locations:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Service": [
+        "lambda.amazonaws.com",
+        "edgelambda.amazonaws.com"
+      ]
+    },
+    "Action": "sts:AssumeRole"
+  }]
+}
+```
+
+## Configuration
+
+Steps to create a Lambda@Edge function:
+
+1. **Create the Lambda function in us-east-1.**
+2. Select runtime: **Node.js or Python**.
+3. Assign an IAM role trusted by both `lambda.amazonaws.com` and `edgelambda.amazonaws.com`.
+4. **Publish a version** of the function (do not use $LATEST).
+5. In the CloudFront distribution, edit the desired behavior.
+6. Add a **Lambda function association** by selecting the trigger and the version ARN.
+
+```js
+// Example: Viewer Response - add security header
+exports.handler = async (event) => {
+  const response = event.Records[0].cf.response;
+  response.headers['strict-transport-security'] = [{
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload'
+  }];
+  return response;
+};
+```
 
 <Callout type="warn">
-**For the SAA-C03 exam:** CloudFront Functions are for lightweight, fast operations (headers, redirects, auth). Lambda@Edge is for more complex functions that need network, filesystem or longer execution time. Both run code at edge locations. Choose based on the complexity of your use case.
+**Exam Tips — SAA-C03:**
+- **MUST deploy in us-east-1** (N. Virginia). Lambda@Edge cannot be created in other regions.
+- **Only Node.js and Python** runtimes are supported (not Java, Go, .NET).
+- **5-second timeout** for Viewer Request and Viewer Response triggers.
+- **30-second timeout** for Origin Request and Origin Response triggers.
+- **Cannot access VPC resources** directly.
+- **A published version is required**, not $LATEST, to associate with CloudFront.
+- **CloudFront Functions** are cheaper and faster for simple operations; Lambda@Edge for complex logic.
+- The **execution role** must trust both: `lambda.amazonaws.com` and `edgelambda.amazonaws.com`.
+- Lambda@Edge **does not support environment variables** in the edge runtime.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Lambda@Edge:**
+
+| Property | Value |
+|---|---|
+| **Deployment region** | us-east-1 (auto-replicated) |
+| **Runtimes** | Node.js, Python only |
+| **Triggers** | 4 (Viewer Req/Res, Origin Req/Res) |
+| **Viewer timeout** | 5 seconds |
+| **Origin timeout** | 30 seconds |
+| **Viewer memory** | 128 MB |
+| **Origin memory** | 10,240 MB |
+| **Viewer package** | 1 MB |
+| **Origin package** | 50 MB |
+| **Network access** | Yes (origin triggers only) |
+| **Environment variables** | Not supported |
+| **VPC access** | Not directly |
 </Callout>

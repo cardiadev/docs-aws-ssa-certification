@@ -1,69 +1,214 @@
 ---
-title: "Load Balancers"
-description: "Elastic Load Balancing — ALB, NLB, CLB, listeners, target groups y cross-zone load balancing."
+title: Elastic Load Balancing
+description: "Elastic Load Balancing — ALB, NLB, GWLB, sticky sessions, X-Forwarded-For y cross-zone load balancing para el examen SAA-C03."
 ---
+
 
 ## Resumen
 
-Los **Elastic Load Balancers (ELB)** distribuyen automáticamente el tráfico entrante entre múltiples destinos (EC2, contenedores, Lambda) en varias zonas de disponibilidad.
+**Elastic Load Balancing (ELB)** distribuye automáticamente el tráfico entrante entre múltiples targets (instancias EC2, contenedores, funciones Lambda, IPs) en una o más Availability Zones, mejorando la disponibilidad y la escalabilidad de las aplicaciones.
 
-## Tipos de Load Balancers
+AWS ofrece tres tipos de load balancers modernos: **ALB** (capa 7), **NLB** (capa 4) y **GWLB** (capa 3).
 
-| Tipo | Capa | Protocolo | Notas |
+## Arquitectura
+
+<Mermaid chart={`
+flowchart TD
+  Internet["Internet"] --> ALB["Application Load Balancer"]
+  ALB --> Listener["Listener :443"]
+  Listener --> Rules["Reglas de Enrutamiento"]
+  Rules --> TG1["Target Group: Web Servers"]
+  Rules --> TG2["Target Group: API Servers"]
+  TG1 --> EC2A["EC2-A"]
+  TG1 --> EC2B["EC2-B"]
+  TG2 --> EC2C["EC2-C"]
+  TG2 --> EC2D["EC2-D"]
+`} />
+
+## Conceptos Clave
+
+### Tipos de Load Balancer
+
+| Feature | ALB | NLB | GWLB |
 |---|---|---|---|
-| **Application LB (ALB)** | Capa 7 (aplicación) | HTTP / HTTPS | Enruta por headers, paths, hosts |
-| **Network LB (NLB)** | Capa 4 (transporte) | TCP / UDP / TLS | Mayor rendimiento, menor latencia |
-| **Classic LB (CLB)** | Capa 4 y 7 | HTTP / TCP | **Obsoleto** — evitar en nuevos proyectos |
+| **Capa OSI** | Capa 7 (HTTP/HTTPS) | Capa 4 (TCP/UDP/TLS) | Capa 3 (paquetes IP) |
+| **Caso de uso** | Apps web, microservicios, contenedores | Gaming, tiempo real, IP estática | Appliances de seguridad de terceros |
+| **IP estática** | No | Sí | No |
+| **Target types** | IP, instancia, Lambda | IP, instancia, ALB | IP, instancia |
+| **Protocolo GENEVE** | No | No | Sí (puerto 6081) |
+| **Terminación SSL** | Sí | Sí (TLS passthrough opcional) | No |
+| **WebSocket** | Sí | Sí | No |
+| **Routing basado en contenido** | Sí | No | No |
 
-### ALB vs NLB
+### Sticky Sessions (Sesiones Pegajosas)
 
-| Característica | ALB | NLB |
+Las Sticky Sessions garantizan que las solicitudes de un mismo cliente se dirijan siempre al mismo target.
+
+| Tipo | Descripción | Duración |
 |---|---|---|
-| **Enrutamiento** | Por contenido HTTP (path, host, headers) | Por puerto/protocolo |
-| **Rendimiento** | Bueno | Más rápido que ALB |
-| **Terminación SSL** | Sí (siempre termina HTTP/HTTPS) | Opcional (puede pasar tráfico sin terminar) |
-| **Tráfico no-HTTP** | No | Sí |
+| **Duration-based** | Cookie generada por el load balancer (`AWSALB`) | Configurable (1 s a 7 días) |
+| **Application-based** | Cookie personalizada generada por la aplicación | Definida por la aplicación |
 
-## Público vs Privado
+> **Nota:** Las Sticky Sessions pueden causar distribución desigual de carga. Solo usar cuando la aplicación requiere estado de sesión en el servidor.
 
-- **Público** — desplegado en subnets públicas, accesible desde internet (ej: web servers)
-- **Privado** — desplegado en subnets privadas, solo accesible internamente (ej: capa de base de datos)
+### Connection Draining / Deregistration Delay
 
-### Arquitectura Multi-capa
+- Cuando un target se elimina o se marca como no saludable, el load balancer **espera que las conexiones en curso se completen** antes de dejar de enviarle tráfico.
+- **Tiempo por defecto:** 300 segundos (5 minutos).
+- Rango configurable: 1 a 3,600 segundos. Establecer en 0 para deshabilitar.
 
-Un patrón común:
+### ALB Autenticación
 
-1. **Load Balancer público** → distribuye tráfico a instancias de la capa API (subnet pública)
-2. **Load Balancer privado** → distribuye tráfico a instancias de la capa de base de datos (subnet privada)
+ALB puede autenticar usuarios directamente antes de reenviar la solicitud al backend:
 
-La capa API envía solicitudes al LB privado de la capa de datos. Los usuarios nunca acceden directamente a la base de datos.
+- **Amazon Cognito:** Para autenticación con user pools.
+- **OIDC compatible:** Google, Facebook, Apple, cualquier proveedor OIDC.
+- El token de autenticación se pasa como header al backend.
 
-## Listeners y Target Groups
+### Cross-Zone Load Balancing
 
-### Listeners
+| Load Balancer | Estado por defecto | Costo inter-AZ |
+|---|---|---|
+| **ALB** | Siempre habilitado | Sin costo adicional |
+| **NLB** | Deshabilitado por defecto | Se cobra transferencia inter-AZ |
+| **GWLB** | Deshabilitado por defecto | Se cobra transferencia inter-AZ |
 
-Un **listener** verifica solicitudes de conexión usando el protocolo y puerto que configures. Define reglas para determinar cómo enrutar el tráfico.
+- **Sin cross-zone:** Cada nodo del LB distribuye solo entre targets en su propia AZ.
+- **Con cross-zone:** Cada nodo del LB distribuye equitativamente entre todos los targets en todas las AZs.
 
-Ejemplos de reglas:
-- Solicitudes a `app1.com` → Target Group A
-- Solicitudes a `app2.com/auth` → Target Group B
-- Solicitudes a `app2.com/cart` → Target Group C
+### X-Forwarded-For
 
-### Target Groups
+- Cuando un cliente se conecta a través de un load balancer, el target ve la IP del load balancer, no la del cliente.
+- El header **`X-Forwarded-For`** contiene la IP original del cliente.
+- **`X-Forwarded-Proto`** contiene el protocolo original (HTTP o HTTPS).
+- **`X-Forwarded-Port`** contiene el puerto original.
 
-Un **target group** enruta solicitudes a uno o más destinos registrados:
+### GWLB (Gateway Load Balancer)
 
-- Instancias **EC2**
-- Contenedores **ECS**
-- Funciones **Lambda**
-- **Direcciones IP**
+- Diseñado para desplegar, escalar y administrar **appliances de seguridad de terceros** (IDS/IPS, firewalls, inspección de paquetes).
+- Usa el protocolo **GENEVE en el puerto 6081** para encapsular el tráfico.
+- Opera en **capa 3**: recibe paquetes IP, los envía al appliance y devuelve el tráfico procesado.
+- Patrón típico: tráfico entrante → GWLB → appliance (inspección) → GWLB → destino final.
 
-Cada target group tiene **health checks** configurados para detectar destinos no saludables y dejar de enviarles tráfico.
+## Comparativa: ALB vs NLB vs GWLB
 
-## Cross-Zone Load Balancing
+| Característica | ALB | NLB | GWLB |
+|---|---|---|---|
+| **Capa** | 7 | 4 | 3 |
+| **Protocolo** | HTTP/HTTPS | TCP/UDP/TLS | IP (GENEVE) |
+| **IP estática** | No | Sí | No |
+| **Routing por contenido** | Sí | No | No |
+| **Lambda como target** | Sí | No | No |
+| **ALB como target** | No | Sí | No |
+| **Preserva IP cliente** | Header X-Forwarded-For | Sí (IP de origen) | Sí |
+| **Casos de uso** | Apps web, APIs, microservicios | Gaming, VoIP, IoT | IDS/IPS, firewalls inline |
 
-Por defecto, cada nodo del load balancer distribuye tráfico solo a los destinos de su propia AZ. Con **cross-zone load balancing** habilitado, el tráfico se distribuye **equitativamente entre todas las instancias en todas las AZs**.
+## Casos de Uso
+
+| Escenario | Load Balancer recomendado |
+|---|---|
+| Aplicación web con múltiples rutas (`/api`, `/web`) | ALB con path-based routing |
+| Necesito una IP estática para el load balancer | NLB |
+| Inspección de paquetes con firewall de tercero | GWLB |
+| Terminación TLS en el load balancer | ALB o NLB |
+| Enrutar tráfico a funciones Lambda | ALB |
+| Gaming con UDP | NLB |
+| Autenticación con Cognito antes del backend | ALB |
+
+## ALB: Reglas de Enrutamiento Avanzadas
+
+El ALB soporta reglas de enrutamiento basadas en múltiples condiciones:
+
+| Condición | Ejemplo |
+|---|---|
+| **Path** | `/api/*` → Target Group API |
+| **Host header** | `admin.example.com` → Target Group Admin |
+| **HTTP header** | `X-Custom-Header: premium` → Target Group Premium |
+| **HTTP method** | `POST` en `/upload` → Target Group Upload |
+| **Query string** | `?version=2` → Target Group V2 |
+| **Source IP** | `10.0.0.0/8` → Target Group Internal |
+
+Las reglas se evalúan en **orden de prioridad** (número más bajo = mayor prioridad). La última regla siempre es la regla por defecto.
+
+### Acciones en las Reglas
+
+| Acción | Descripción |
+|---|---|
+| **Forward** | Enviar al target group especificado |
+| **Redirect** | Redirigir a otra URL (HTTP→HTTPS, cambio de dominio) |
+| **Fixed Response** | Retornar una respuesta estática (200, 403, 503) |
+| **Authenticate** | Autenticar con Cognito/OIDC antes de reenviar |
+
+## Health Checks
+
+Todos los tipos de ELB realizan **health checks** para detectar targets no saludables:
+
+| Parámetro | Descripción | Valor típico |
+|---|---|---|
+| **Protocol** | HTTP, HTTPS o TCP | HTTP |
+| **Path** | Ruta del endpoint de health check | `/health` |
+| **Healthy threshold** | Checks exitosos para marcar saludable | 3 |
+| **Unhealthy threshold** | Checks fallidos para marcar no saludable | 3 |
+| **Timeout** | Tiempo de espera por respuesta | 5 s |
+| **Interval** | Frecuencia de verificación | 30 s |
+| **Success codes** | Códigos HTTP que indican salud | 200-299 |
+
+> Un target se elimina del pool de enrutamiento si supera el **unhealthy threshold**. Se vuelve a agregar automáticamente cuando pasa los health checks.
+
+## Esquemas: Internet-facing vs Internal
+
+| Esquema | Descripción | Casos de Uso |
+|---|---|---|
+| **Internet-facing** | ELB tiene IP pública, accesible desde internet | Frontend, web apps públicas |
+| **Internal** | ELB tiene solo IP privada, solo accesible en VPC | Backend, microservicios internos, capa de DB |
+
+Un patrón común de arquitectura multi-capa:
+
+```
+Internet → ALB (internet-facing) → EC2 Web Layer
+                                         ↓
+                              ALB (internal) → EC2 App Layer
+                                                     ↓
+                                          RDS / ElastiCache
+```
+
+## Configuración
+
+Pasos típicos para crear un ALB:
+
+1. Ir a **EC2 → Load Balancers → Create Load Balancer → Application Load Balancer**.
+2. Seleccionar **esquema**: Internet-facing (público) o Internal (privado).
+3. Seleccionar **VPC y subnets** (mínimo 2 AZs para alta disponibilidad).
+4. Configurar **Security Groups**.
+5. Configurar **Listeners** (puerto 80, 443).
+6. Crear **Target Groups** y agregar targets (instancias, IPs, Lambda).
+7. Definir **Reglas de enrutamiento** en el listener.
 
 <Callout type="warn">
-**Para el examen SAA-C03:** ALB opera en capa 7 y enruta por contenido HTTP; NLB opera en capa 4 y es más rápido. CLB es obsoleto. Los listeners definen reglas de enrutamiento y los target groups agrupan destinos. Cross-zone load balancing distribuye tráfico equitativamente entre AZs. ALB siempre termina HTTP/HTTPS; NLB puede pasar tráfico sin terminar.
+**Exam Tips — SAA-C03:**
+- **ALB = capa 7 (HTTP/HTTPS)**, enruta por path, host header, query string, source IP.
+- **NLB = capa 4 (TCP/UDP)**, más rápido, soporta IP estática — elegir para gaming o IP fija requerida.
+- **GWLB = capa 3**, para appliances de seguridad inline (IDS/IPS/firewalls) usando protocolo GENEVE.
+- **X-Forwarded-For** para obtener la IP real del cliente detrás de un ALB.
+- **ALB puede enrutar a funciones Lambda** como target.
+- **Cross-zone load balancing:** ALB siempre habilitado sin costo; NLB deshabilitado por defecto, tiene costo inter-AZ.
+- **Sticky Sessions** pueden causar distribución desigual — solo para aplicaciones stateful.
+- **Connection Draining** (300 s por defecto) permite completar solicitudes en vuelo antes del deregistro.
+- **NLB preserva la IP de origen** del cliente; ALB usa X-Forwarded-For.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Elastic Load Balancing:**
+
+| Propiedad | ALB | NLB | GWLB |
+|---|---|---|---|
+| **Capa** | 7 | 4 | 3 |
+| **Protocolo** | HTTP/HTTPS | TCP/UDP/TLS | IP/GENEVE |
+| **IP estática** | No | Sí | No |
+| **Lambda target** | Sí | No | No |
+| **Cross-zone** | Siempre ON | OFF por defecto | OFF por defecto |
+| **Sticky Sessions** | Sí | Sí | No |
+| **SSL Termination** | Sí | Sí (opcional) | No |
+| **Deregistration delay** | 300 s (defecto) | 300 s (defecto) | 300 s (defecto) |
+| **Client IP header** | X-Forwarded-For | Nativo | Nativo |
 </Callout>

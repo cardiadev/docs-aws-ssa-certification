@@ -1,34 +1,138 @@
 ---
 title: "Elastic IP"
-description: "Static public IP addresses — allocation, association and pricing."
+description: "Static public IP addresses — allocation, failover remapping, BYOIP, and Elastic IP pricing in AWS."
 ---
 
 ## Overview
 
-**Elastic IPs** are static IPv4 addresses you can allocate to your AWS account and associate with EC2 instances. Unlike regular public IPs that change on reboot, Elastic IPs **remain fixed**.
+**Elastic IPs (EIPs)** are static public IPv4 addresses you can allocate to your AWS account and associate with EC2 instances or other network interfaces. Unlike automatic public IPs that change when you stop and start an instance, Elastic IPs **remain fixed** until you explicitly release them.
 
-## The Problem They Solve
+Elastic IPs are **regional**: they exist within an AWS region and cannot be moved between regions.
 
-When an EC2 instance in a public subnet gets a public IP, that IP is **not reserved**. If the instance reboots it may get a completely different IP — causing problems for users, DNS records and IP whitelists.
+## Architecture
 
-## How They Work
+<Mermaid chart={`
+flowchart LR
+  User["User (Internet)"]
+  EIP["Elastic IP\n54.x.x.x (static)"]
+  EC2A["EC2 Instance A\n10.0.0.5 (private)"]
+  EC2B["EC2 Instance B\n10.0.0.6 (private)"]
 
-1. **Allocate** an Elastic IP to your account — it is reserved for you
-2. **Associate** the Elastic IP with an EC2 instance or network interface
-3. The instance keeps that fixed IP even after reboots
+  User -->|"Traffic to 54.x.x.x"| EIP
+  EIP -->|"Normal association"| EC2A
+  EIP -.->|"Remapping (failover)"| EC2B
+`} />
 
-You can **disassociate** an Elastic IP from one instance and **reassociate** it with another — useful for migrating traffic during maintenance.
+> Remapping allows you to move the EIP from one instance to another in seconds, redirecting traffic without changing the public IP visible to users.
 
-## Features
+## Key Concepts
 
-| Feature | Detail |
+### EIP vs Auto-assigned Public IP
+
+| Feature | Auto-assigned Public IP | Elastic IP |
+|---|---|---|
+| **Persistence** | Changes when instance stops/starts | Remains fixed until you release it |
+| **Cost** | Free (included with instance) | Free only when associated with a running instance |
+| **Type** | Dynamic | Static |
+| **Control** | AWS assigns and manages | You assign and control |
+| **Failover** | Not applicable | Possible via remapping |
+| **Custom DNS** | Impractical (changes) | Ideal (fixed IP → DNS record) |
+| **Whitelists** | Impractical | Ideal (IP is always the same) |
+| **Source** | Amazon pool (not selectable) | Amazon pool or BYOIP |
+
+### BYOIP (Bring Your Own IP)
+
+AWS allows you to bring your own public IPs (**BYOIP**):
+
+- You can import an IPv4 or IPv6 IP block that you already own
+- Useful when you have an established IP reputation or external whitelists you cannot change
+- Requires verifying IP block ownership through an authorization process
+- Once imported, BYOIP addresses can be used as Elastic IPs
+
+### Remapping: Failover with Elastic IP
+
+**Remapping** is the ability to instantly reassign an Elastic IP from one instance to another:
+
+1. The EIP is associated with **instance A** (active)
+2. Instance A fails or requires maintenance
+3. You reassign the EIP to **instance B** (standby)
+4. Traffic arriving at the EIP now goes to instance B
+5. Users and external systems notice nothing — the IP remains the same
+
+This is faster than updating DNS records (which have TTL) but slower than a Load Balancer with automatic health checks.
+
+### Limits and Costs
+
+| Aspect | Detail |
 |---|---|
-| **Type** | Static IPv4 |
-| **Scope** | Region-specific |
-| **Source** | Amazon's pool or your own pool (BYOIP) |
-| **Cost** | Free when associated with a running instance |
-| **Extra cost** | Hourly charge if NOT associated or if you have more than one per instance |
+| **Limit per region** | 5 EIPs (adjustable by requesting an increase from AWS) |
+| **Cost when associated with running instance** | Free |
+| **Cost when NOT associated** | Hourly charge (~$0.005/hour) |
+| **Cost when associated with stopped instance** | Hourly charge |
+| **Cost when you have more than one EIP per instance** | Hourly charge for each additional EIP |
+| **Remapping cost** | No additional charge |
+
+**Mnemonic rule**: AWS charges for EIPs that "waste" public IP space — if the IP is not being actively used, you pay.
+
+## Use Cases
+
+| Scenario | Why Use Elastic IP |
+|---|---|
+| **External firewall whitelist** | IP never changes → stable firewall rules |
+| **Custom DNS with low change latency** | Point your domain A record to an EIP; when you migrate servers, just do a remapping |
+| **Fast manual failover** | Reassign the EIP to the standby server in seconds |
+| **NAT Gateway** | NAT GW requires an EIP as its outbound IP |
+| **BYOIP** | Maintain IP reputation or meet compliance requirements |
+| **License server** | Some software licenses are tied to a specific IP |
+
+## Configuration
+
+To allocate and associate an Elastic IP:
+
+1. **Allocate the EIP**:
+   - Navigate to **EC2 → Elastic IPs → Allocate Elastic IP address**
+   - Select the pool: **Amazon's pool of IPv4 addresses** (or your BYOIP pool)
+   - Click **Allocate**
+
+2. **Associate the EIP**:
+   - Select the newly created EIP
+   - Click **Actions → Associate Elastic IP address**
+   - Select the type: **Instance** or **Network interface**
+   - Select the target instance or interface
+   - Click **Associate**
+
+3. **Remapping (Failover)**:
+   - Select the EIP
+   - Click **Actions → Disassociate** to detach it from the current instance
+   - Then **Actions → Associate** to attach it to the new instance
+
+4. **Release the EIP** when you no longer need it:
+   - Select the EIP → **Actions → Release Elastic IP addresses**
+   - A released EIP may be assigned to another customer — **there is no guarantee of getting it back**
 
 <Callout type="warn">
-**For the SAA-C03 exam:** Elastic IPs are regional and cannot be moved between regions. Regular public IPs change on reboot; Elastic IPs do not. You are charged for unassociated Elastic IPs — always associate or release them.
+**SAA-C03 Exam Tips:**
+- EIPs incur **charges when not associated with a running instance** — always associate or release them.
+- The default limit is **5 EIPs per region** (adjustable). If a question mentions needing more, a limit increase must be requested.
+- When you do **remapping**, the EIP moves, not the instance — instance B receives A's EIP but remains the same instance with its own private IP.
+- EIPs are **regional** — they cannot be moved between regions.
+- The auto-assigned public IP of an instance **disappears** when it is stopped and a new one appears when restarted. An EIP **never changes**.
+- For **automatic high availability**, prefer a Load Balancer + Auto Scaling Group over manual EIP remapping.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Elastic IPs:**
+
+| Property | Value |
+|---|---|
+| Type | Static public IPv4 |
+| Scope | Regional (cannot move between regions) |
+| Default limit | 5 per region (adjustable) |
+| Cost when associated (running instance) | Free |
+| Cost when NOT associated | ~$0.005/hour |
+| Cost with stopped instance | ~$0.005/hour |
+| BYOIP | Supported (IPv4 and IPv6) |
+| Remapping | In seconds, no visible IP change |
+| EIP failover | Manual (not automatic) |
+| Alternative for automatic HA | ALB + Auto Scaling Group |
 </Callout>

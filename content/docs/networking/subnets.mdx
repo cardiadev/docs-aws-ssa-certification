@@ -1,78 +1,151 @@
 ---
 title: "Subnets"
-description: "Subredes dentro de una VPC — públicas, privadas, direccionamiento IP y zonas de disponibilidad."
+description: "Subredes dentro de una VPC — públicas, privadas, direccionamiento IP, IPs reservadas y zonas de disponibilidad."
 ---
 
 ## Resumen
 
-Las **subnets** (subredes) son grupos de direcciones IP dentro de tu VPC donde despliegas recursos. Cada subnet reside en **una sola zona de disponibilidad (AZ)**, y es así como determinas en qué AZ se despliega un recurso.
+Las **subnets** (subredes) son segmentos de IP dentro de tu VPC donde despliegas recursos. Cada subnet reside en **una sola zona de disponibilidad (AZ)**, lo que determina en qué AZ queda el recurso desplegado. Una subnet no puede abarcar múltiples AZs.
+
+La diferencia fundamental entre una subnet pública y una privada es la presencia de una **ruta hacia un Internet Gateway** en su route table — no simplemente la asignación de IP pública.
+
+## Arquitectura
+
+<Mermaid chart={`
+graph TD
+  VPC["VPC (10.0.0.0/16)"]
+  AZ1["AZ us-east-1a"]
+  AZ2["AZ us-east-1b"]
+  PubA["Subnet Pública 10.0.1.0/24"]
+  PrivA["Subnet Privada 10.0.2.0/24"]
+  PubB["Subnet Pública 10.0.3.0/24"]
+  PrivB["Subnet Privada 10.0.4.0/24"]
+  IGW["Internet Gateway"]
+  NATGW["NAT Gateway"]
+  Internet["Internet"]
+
+  VPC --> AZ1
+  VPC --> AZ2
+  AZ1 --> PubA
+  AZ1 --> PrivA
+  AZ2 --> PubB
+  AZ2 --> PrivB
+  PubA --> IGW
+  PubB --> IGW
+  IGW --> Internet
+  PrivA --> NATGW
+  PrivB --> NATGW
+  NATGW --> IGW
+`} />
 
 ## Conceptos Clave
 
-### Subnets y Zonas de Disponibilidad
-
-Cuando despliegas un recurso (como una instancia EC2), lo haces en una subnet específica. Esa subnet existe en una sola AZ, por lo que el recurso queda desplegado en esa AZ.
-
-- **Subnet 1** en AZ `us-east-1a` → recursos desplegados aquí estarán en `us-east-1a`
-- **Subnet 2** en AZ `us-east-1b` → recursos aquí estarán en `us-east-1b`
-
-### Reglas de Direccionamiento
-
-- Las subnets deben estar **dentro del rango CIDR de la VPC**
-- El tamaño del bloque debe estar entre **/16** y **/28**
-- Las subnets **no pueden solaparse** con otras subnets en la misma VPC (pero sí pueden solaparse con subnets en VPCs diferentes)
-- Por defecto, las subnets dentro de la misma VPC **pueden comunicarse entre sí** sin configuración adicional
-
 ### Direcciones IP Reservadas
 
-En cada subnet, **5 direcciones IP están reservadas** y no pueden asignarse a recursos:
+En cada subnet, **5 direcciones IP están reservadas** por AWS y no pueden asignarse a recursos. Para una subnet `10.0.1.0/24`:
 
-| Dirección | Propósito |
-|---|---|
-| Primera (`.0`) | Dirección de red |
-| Segunda (`.1`) | Router de la VPC |
-| Tercera (`.2`) | Servidor DNS |
-| Cuarta (`.3`) | Reservada por AWS para uso futuro |
-| Última (`.255`) | Dirección de broadcast |
+| Dirección | IP Ejemplo | Propósito | Por qué está reservada |
+|---|---|---|---|
+| Primera (`.0`) | 10.0.1.0 | Dirección de red | Identifica la red, no puede asignarse a hosts |
+| Segunda (`.1`) | 10.0.1.1 | Router de la VPC | El VPC router usa esta IP para enrutar tráfico entre subnets |
+| Tercera (`.2`) | 10.0.1.2 | Servidor DNS de AWS | Reservada para el resolver DNS de Amazon (169.254.169.253) |
+| Cuarta (`.3`) | 10.0.1.3 | Reservada por AWS | Para uso futuro de servicios de AWS |
+| Última (`.255`) | 10.0.1.255 | Dirección de broadcast | Broadcast de red (aunque AWS no soporta broadcast, la reserva) |
 
-**Ejemplo:** en una subnet `192.168.10.0/24`, las IPs `.0`, `.1`, `.2`, `.3` y `.255` no están disponibles, dejando 251 IPs utilizables.
+**Implicación práctica:** si necesitas exactamente 29 IPs para hosts, necesitas una subnet /27 (32 IPs totales, 27 utilizables), no una /28 (16 IPs totales, 11 utilizables).
 
-## Subnets Públicas vs Privadas
+### CIDR Sizing
 
-La diferencia entre una subnet pública y una privada depende de si los dispositivos en internet pueden acceder a los recursos desplegados en ella.
+| Prefijo | IPs Totales | IPs Utilizables | Uso Típico |
+|---|---|---|---|
+| /16 | 65,536 | 65,531 | VPC completa |
+| /20 | 4,096 | 4,091 | Subnet grande (default VPC) |
+| /22 | 1,024 | 1,019 | Subnet mediana-grande |
+| /24 | 256 | 251 | Subnet estándar más común |
+| /25 | 128 | 123 | Subnet mediana |
+| /26 | 64 | 59 | Subnet pequeña |
+| /27 | 32 | 27 | Subnet muy pequeña |
+| /28 | 16 | 11 | Subnet mínima permitida |
 
-| Pregunta | Subnet |
-|---|---|
-| ¿Los usuarios de internet necesitan acceder al recurso? | **Pública** |
-| ¿Solo otros recursos internos necesitan acceder? | **Privada** |
+### Subnets Públicas vs Privadas
 
-### Ejemplo de Arquitectura
+Lo que determina si una subnet es pública o privada es **la ruta en su route table**, no el nombre ni ningún flag especial:
 
-Un patrón muy común es:
+| Característica | Subnet Pública | Subnet Privada |
+|---|---|---|
+| **Ruta por defecto** | `0.0.0.0/0` → Internet Gateway | Sin ruta a IGW (o ruta a NAT GW) |
+| **Acceso desde internet** | Sí (requiere IP pública o EIP) | No (internet no puede iniciar conexiones) |
+| **Acceso a internet** | Directo vía IGW | Solo saliente vía NAT Gateway |
+| **Recursos típicos** | Load balancers, bastion hosts, NAT GW | EC2 de aplicación, bases de datos, caches |
+| **Auto-assign IP pública** | Generalmente habilitado | Generalmente deshabilitado |
 
-1. **Web server** → subnet **pública** (los usuarios necesitan acceder desde internet)
-2. **Base de datos** → subnet **privada** (solo el web server necesita comunicarse con ella)
+### Auto-assign Public IP
 
-Los usuarios se conectan al web server en la subnet pública, y el web server se comunica internamente con la base de datos en la subnet privada. Esto protege la base de datos de acceso directo desde internet.
+La opción **Auto-assign public IPv4 address** en una subnet determina si las instancias lanzadas en ella reciben automáticamente una IP pública:
 
-### Otro Caso de Uso: Extensión del Data Center
+- Solo tiene efecto en subnets con ruta al IGW (subnets públicas)
+- La IP pública asignada automáticamente **no es una Elastic IP** — cambia al detener/iniciar la instancia
+- Para IPs estáticas necesitas una **Elastic IP**
+- Puedes sobrescribir el setting de la subnet al lanzar una instancia específica
 
-Si usas AWS como extensión de tu data center privado, puedes desplegar todos los recursos en subnets privadas y conectar tu data center a AWS mediante una **VPN**. No necesitas subnets públicas porque los recursos no requieren acceso directo desde internet.
+### IPv6 en Subnets
+
+- Cada subnet puede recibir un bloque IPv6 **/64** (del /56 asignado a la VPC)
+- Las IPs IPv6 son **globalmente únicas** y públicamente enrutables por diseño
+- No existe NAT para IPv6 — usa **Egress-Only Internet Gateway** para tráfico saliente IPv6 desde subnets privadas
+- Una subnet puede ser **dual-stack** (IPv4 + IPv6) o **solo IPv6**
+- Las IPs IPv6 persisten mientras la instancia existe (no cambian al reiniciar)
+
+## Casos de Uso
+
+| Tier | Tipo de Subnet | Recurso Típico | Razón |
+|---|---|---|---|
+| Web / Presentación | Pública | ALB, CloudFront Origin, Bastion Host | Necesita ser accesible desde internet |
+| Aplicación | Privada | EC2 con lógica de negocio, ECS Tasks | Solo accesible desde el ALB, no desde internet |
+| Base de datos | Privada | RDS, ElastiCache, DynamoDB VPC Endpoint | Solo accesible desde la capa de aplicación |
+| NAT | Pública | NAT Gateway | Necesita IP pública para reenviar tráfico saliente |
+| VPN / Direct Connect | Privada | Virtual Private Gateway | Conectividad híbrida, no expuesta a internet |
+| Administración | Pública (restringida) | Bastion Host / Session Manager | Acceso administrativo controlado |
 
 ## Configuración
 
-Al crear una subnet puedes:
+Para crear una subnet desde la consola AWS:
 
-- Asignarla a una **AZ específica**
-- Definir un **bloque CIDR IPv4** dentro del rango de la VPC
-- Opcionalmente definir un **bloque CIDR IPv6 /64**
-- Habilitar la **asignación automática de IP pública** (necesario para subnets públicas)
-- Configurar subnets que usen **solo IPv6** sin direcciones IPv4
+1. Navega a **VPC → Subnets → Create subnet**
+2. Selecciona la **VPC** destino
+3. Asigna un **nombre descriptivo** (ej: `prod-public-1a`, `prod-private-1a`)
+4. Selecciona la **Availability Zone** (nunca uses "No preference" en producción)
+5. Define el **bloque CIDR IPv4** dentro del rango de la VPC (ej: `10.0.1.0/24`)
+6. Opcionalmente asigna un **bloque CIDR IPv6 /64**
+7. Haz clic en **Create subnet**
 
-<Callout type="info">
-**Lo que determina si una subnet es pública o privada son los gateways:** una subnet con ruta hacia un Internet Gateway es pública; sin esa ruta, es privada. La configuración de auto-asignar IP pública es un complemento, no el factor determinante.
-</Callout>
+Después de crear la subnet:
+- Para hacerla **pública**: edita su route table y agrega una ruta `0.0.0.0/0 → IGW`; habilita auto-assign public IP
+- Para hacerla **privada con acceso a internet**: configura route table con `0.0.0.0/0 → NAT Gateway`
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Recuerda que las subnets no pueden solaparse dentro de la misma VPC, que 5 IPs están reservadas por AWS en cada subnet, y que las subnets residen en una sola AZ. Si necesitas alta disponibilidad, despliega recursos en subnets de múltiples AZs.
+**Consejos para el examen SAA-C03:**
+- Las subnets **no pueden solaparse** dentro de la misma VPC.
+- Siempre hay **5 IPs reservadas** por AWS en cada subnet (no 4, no 3 — siempre 5).
+- Las subnets residen en **una sola AZ**. Para alta disponibilidad, despliega recursos en subnets de múltiples AZs.
+- Lo que hace pública a una subnet es una **ruta hacia el IGW** en su route table, no un flag en la subnet misma.
+- La IP pública auto-asignada **no es una Elastic IP** y cambia al detener/iniciar la instancia.
+- Para outbound IPv6 desde subnets privadas, usa **Egress-Only Internet Gateway**, no NAT Gateway.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Subnets:**
+
+| Propiedad | Valor |
+|---|---|
+| Alcance | Una sola AZ |
+| Tamaño CIDR permitido | /16 a /28 |
+| IPs reservadas por AWS | 5 por subnet |
+| Subnet pública | Ruta 0.0.0.0/0 → IGW |
+| Subnet privada | Sin ruta a IGW |
+| Auto-assign IP pública | No es Elastic IP (cambia al reiniciar) |
+| IPv6 por subnet | Bloque /64 |
+| Máx. subnets por VPC | 200 (ajustable) |
+| Comunicación intra-VPC | Habilitada por defecto vía local route |
+| Subnet por defecto CIDR | /20 (4,096 IPs totales, 4,091 utilizables) |
 </Callout>

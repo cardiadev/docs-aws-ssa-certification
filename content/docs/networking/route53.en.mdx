@@ -1,58 +1,203 @@
 ---
-title: "Route 53"
-description: "Amazon Route 53 — managed DNS service, hosted zones, domain registrar and Application Recovery Controller."
+title: Amazon Route 53
+description: "Amazon Route 53 — managed DNS, 7 routing policies, Alias vs CNAME, health checks and private hosted zones for the SAA-C03 exam."
 ---
+
 
 ## Overview
 
-**Amazon Route 53** is AWS's managed DNS service. It lets you register domains, manage DNS records and route traffic to your applications. It is a **global service** — not tied to any specific region.
+**Amazon Route 53** is AWS's fully managed DNS service. It provides domain registration, DNS record management, health checks, and multiple routing policies to control how traffic is directed to AWS and external resources.
 
-## Key Features
+It is a **global service** (not regional) with high availability and scalability, operating with a 100% SLA.
 
-- **Domain registrar** — purchase domains directly (like GoDaddy or Namecheap)
-- **DNS record management** — manage all records for your domains
-- **Traffic routing** — direct users to your AWS resources
+## Architecture
+
+<Mermaid chart={`
+sequenceDiagram
+  participant Client as Client
+  participant Resolver as Route 53 Resolver
+  participant HZ as Hosted Zone
+  participant App as Application (based on policy)
+
+  Client->>Resolver: What is the IP of app.example.com?
+  Resolver->>HZ: DNS query
+  HZ->>HZ: Evaluate routing policy
+  HZ-->>Resolver: IP based on policy (latency/weighted/failover...)
+  Resolver-->>Client: Destination IP
+  Client->>App: Direct connection to IP
+`} />
+
+## Key Concepts
+
+### Alias vs CNAME
+
+| Feature | Alias | CNAME |
+|---|---|---|
+| **Zone apex (root domain)** | Yes (`example.com`) | No (subdomains only) |
+| **AWS resources** | Yes (native) | No (any hostname) |
+| **Query charge** | No additional charge | Standard charge |
+| **Valid targets** | AWS resources only | Any hostname |
+| **TTL** | Managed by AWS | Manually configurable |
+| **Health checks** | Yes (for some targets) | Yes |
+
+> **Key rule:** Use **Alias** to point to AWS resources (ELB, CloudFront, S3, API Gateway). Use **CNAME** for external hostnames. **Only Alias can be used at the zone apex** (root domain).
+
+### 7 Routing Policies
+
+| Policy | Use Case | Health Checks |
+|---|---|---|
+| **Simple** | A single target resource | No |
+| **Weighted** | A/B testing, gradual migration | Yes |
+| **Latency** | Route to lowest-latency resource | Yes |
+| **Failover** | Active-passive DR | Required |
+| **Geolocation** | Content by country or continent | Yes |
+| **Geoproximity** | Route by geographic proximity + bias | Yes (requires Traffic Flow) |
+| **Multivalue** | Multiple healthy IPs (not a replacement for ELB) | Yes |
+
+#### Simple
+- Returns a static DNS record.
+- If multiple values, returns all and the client chooses randomly.
+- **Does not support health checks.**
+
+#### Weighted
+- Assigns weights to each record (0-255).
+- `Weight 0` = no traffic sent to that resource.
+- Useful for **A/B testing** and gradual migrations.
+
+#### Latency
+- Routes to the resource with the **lowest network latency** from the user's perspective.
+- Requires records in multiple regions.
+
+#### Failover
+- **Active-Passive** configuration: primary (active) and secondary (passive).
+- **Requires a health check** on the primary resource.
+- If the primary fails, Route 53 automatically routes to the secondary.
+
+#### Geolocation
+- Routes based on the **geographic location** of the user (country, continent, or default).
+- Different from Latency: does not measure latency, only location.
+- Useful for legal restrictions, language, or regional customization.
+
+#### Geoproximity
+- Routes based on geographic location with the ability to adjust the **bias**.
+- `Positive bias` = expand the coverage area of a resource.
+- `Negative bias` = reduce the coverage area.
+- **Requires Route 53 Traffic Flow** (visual policy editor).
+
+#### Multivalue
+- Returns up to **8 healthy records** per query.
+- Not a substitute for a load balancer (no advanced routing).
+- Each record can have an associated health check.
+
+### Health Checks
+
+| Type | Description |
+|---|---|
+| **Endpoint** | Monitors an HTTP/HTTPS/TCP endpoint |
+| **Calculated** | Combines results from multiple health checks (AND/OR) |
+| **CloudWatch Alarm** | Passes/fails based on a CloudWatch alarm state |
+
+- Route 53 health checks run from multiple global locations.
+- An endpoint is considered healthy if **>18%** of health checkers see it as healthy.
+- **Private endpoints** can be monitored using CloudWatch Alarm-based health checks.
+
+### Private Hosted Zones
+
+- A **Private Hosted Zone** is only accessible from **associated VPCs**.
+- DNS traffic does not leave the private network.
+- Supports **split-horizon DNS**: same domain with different responses depending on whether the query comes from a private VPC or the public internet.
+
+### DNSSEC
+
+- **DNSSEC** adds cryptographic signatures to DNS records to prevent cache poisoning attacks.
+- Route 53 supports DNSSEC for public hosted zones.
+
+### Resolver Endpoints
+
+| Type | Direction | Use Case |
+|---|---|---|
+| **Inbound** | On-premises → Route 53 | Resolve AWS DNS from corporate network |
+| **Outbound** | Route 53 → On-premises DNS | Resolve corporate DNS from AWS (hybrid DNS) |
+
+## DNS Record Types
+
+Route 53 supports all standard DNS record types:
+
+| Type | Description | Example |
+|---|---|---|
+| **A** | Maps a hostname to an IPv4 address | `app.example.com → 1.2.3.4` |
+| **AAAA** | Maps a hostname to an IPv6 address | `app.example.com → 2001:db8::1` |
+| **CNAME** | Maps a hostname to another hostname | `www.example.com → app.example.com` |
+| **Alias** | Maps to AWS resources (Route 53 extension) | `example.com → xyz.elb.amazonaws.com` |
+| **MX** | Mail exchange records | Mail server |
+| **TXT** | Text records | Domain verification, SPF |
+| **NS** | Name server records | Zone delegation |
+| **SOA** | Start of Authority | Zone information |
 
 ## Hosted Zones
 
-A **hosted zone** is the container where you define all DNS records and rules for a specific domain.
+### Public Hosted Zone
 
-When you create a hosted zone:
+- Resolves DNS queries from the **public internet**.
+- Used for publicly accessible domains.
+- AWS charges per hosted zone and per DNS query.
 
-1. AWS reserves **4 name servers** exclusively for your zone
-2. All DNS records for that domain are stored in the hosted zone
-3. Each domain has its own independent hosted zone
+### Private Hosted Zone
 
-**Example:**
-- `kodekloud.com` → hosted zone with 4 dedicated name servers
-- `fastcars.com` → another hosted zone with 4 different name servers
+- Resolves queries only from **associated VPCs**.
+- Multiple VPCs can be associated with the same private hosted zone (even across accounts using Resource Access Manager).
+- Requires VPC options `enableDnsHostnames` and `enableDnsSupport` to be enabled.
 
-## Application Recovery Controller
+## Use Cases by Policy
 
-**Route 53 Application Recovery Controller (ARC)** is a service that continually monitors your application's ability to recover from failures and controls recovery across regions and AZs.
-
-### Key ARC Concepts
-
-| Term | Description |
+| Scenario | Recommended Policy |
 |---|---|
-| **Cell** | Group of all resources needed for an application to operate independently (e.g. LB + EC2 in a region) |
-| **Recovery Group** | Collection of cells representing an application — monitors availability of active and standby sites |
-| **Resource Set** | Resources that span multiple cells (e.g. DynamoDB Global Table) |
-| **Readiness Check** | Continuous verification that the standby site is ready to receive traffic |
-| **Routing Control** | Allows manual failover of traffic to the standby site via Route 53 |
+| Simple website, one server | Simple |
+| Gradually deploy new version | Weighted |
+| Global users, lowest possible latency | Latency |
+| Active-passive disaster recovery | Failover |
+| Different content by country/language | Geolocation |
+| Expand/reduce regional coverage area | Geoproximity |
+| DNS responses with multiple healthy IPs | Multivalue |
 
-### Typical Architecture
+## Configuration
 
-1. **Active site** — primary region with LB + EC2 + database
-2. **Standby site** — secondary region with the same configuration
-3. **ARC** monitors both sites and verifies the standby is ready
-4. Route 53 points DNS to the active site; on failure, redirects to standby
+Steps to create a Failover policy:
 
-### Use Cases
-
-- **Automatic failover** — redirect traffic when the application degrades
-- **Planned maintenance** — manually divert traffic to the standby site during maintenance
+1. Create a **Hosted Zone** for the domain.
+2. Create a **Health Check** for the primary resource.
+3. Create a DNS record with **Failover** policy → type **Primary**, associate the health check.
+4. Create another DNS record with **Failover** policy → type **Secondary** (no health check required).
+5. Route 53 will automatically route to the secondary if the primary fails.
 
 <Callout type="warn">
-**For the SAA-C03 exam:** Route 53 is a global service (not regional). Hosted zones contain DNS records for a domain with 4 dedicated name servers. ARC monitors standby site availability and enables manual or automatic failover using Route 53 to redirect DNS.
+**Exam Tips — SAA-C03:**
+- **Alias at zone apex** (root domain like `example.com`): only Alias works, not CNAME.
+- **Geoproximity requires Traffic Flow** to configure the visual bias.
+- **Failover requires health checks** on the primary resource.
+- **Weighted with value 0** = no traffic sent to that resource.
+- **Multivalue is NOT a load balancer** — it simply returns multiple healthy IPs.
+- **Latency vs Geolocation:** Latency routes to lowest latency; Geolocation routes by geographic location.
+- **Private Hosted Zones** require association with a VPC.
+- **Health checks for private endpoints** require CloudWatch Alarm-based health checks.
+- **Split-horizon DNS:** same zone, different responses for VPC vs internet.
+- Route 53 is a **global service** — it is not in any specific region.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Amazon Route 53:**
+
+| Property | Value |
+|---|---|
+| **Routing policies** | 7 (Simple, Weighted, Latency, Failover, Geolocation, Geoproximity, Multivalue) |
+| **Zone apex** | Alias only (not CNAME) |
+| **Health checks** | Yes (required for Failover) |
+| **Private zones** | Associated with VPC |
+| **DNS protocol** | UDP/TCP port 53 |
+| **SLA** | 100% availability |
+| **DNSSEC** | Supported for public zones |
+| **Multivalue IPs** | Up to 8 healthy records |
+| **Geoproximity** | Requires Route 53 Traffic Flow |
+| **Inbound Resolver** | On-prem → Route53 |
+| **Outbound Resolver** | Route53 → On-prem DNS |
 </Callout>

@@ -1,54 +1,142 @@
 ---
 title: "VPC Peering"
-description: "VPC Peering — conexión de red directa entre dos VPCs para comunicación bidireccional."
+description: "Conexión de red privada entre dos VPCs — misma o diferente cuenta y región — sin pasar por internet."
 ---
 
 ## Resumen
 
-Un **VPC Peering** es una conexión de red entre dos VPCs que permite enrutar tráfico entre ellas. Los recursos en ambas VPCs pueden comunicarse como si estuvieran en la misma red.
+Un **VPC Peering** es una conexión de red privada entre dos VPCs que permite que sus recursos se comuniquen entre sí usando **direcciones IP privadas**, como si estuvieran en la misma red. El tráfico no pasa por internet, ni por una VPN, ni por un gateway externo — viaja directamente a través de la infraestructura de red de AWS.
 
-## Características
+El peering puede establecerse entre VPCs en:
+- La **misma cuenta y región**
+- La **misma cuenta pero diferente región** (inter-region peering)
+- **Diferentes cuentas de AWS** (cross-account peering)
 
-- Funciona entre VPCs en la **misma región**, en **diferentes regiones** y en **diferentes cuentas AWS**
-- **Sin costo** por crear el peering
-- Transferencia de datos **dentro de la misma AZ** es gratuita
-- Transferencia de datos **entre AZs** tiene costo
+## Arquitectura
 
-## Cómo Configurarlo
+<Mermaid chart={`
+graph TD
+  A["VPC-A\n10.0.0.0/16"]
+  B["VPC-B\n10.1.0.0/16"]
+  C["VPC-C\n10.2.0.0/16"]
 
-1. Una VPC envía una **solicitud de peering** a la otra VPC
-2. El propietario de la segunda VPC **acepta** la solicitud
-3. Se configuran **rutas** en ambas route tables apuntando al peering
+  A <-->|"Peering 1"| B
+  B <-->|"Peering 2"| C
+  A <-->|"Peering 3 — necesario"| C
 
-### Ejemplo de Rutas
+  note["Formula: n x n-1 / 2\n3 VPCs = 3 peerings\n4 VPCs = 6 peerings\n10 VPCs = 45 peerings"]
+`} />
 
-Para VPC 1 (`10.1.0.0/16`) conectada con VPC 2 (`10.2.0.0/16`):
+## Conceptos Clave
 
-**Route table de VPC 1:**
+### Sin Peering Transitivo
 
-| Destination | Target |
+Este es el concepto más importante de VPC Peering para el examen:
+
+- Si VPC-A tiene peering con VPC-B, y VPC-B tiene peering con VPC-C...
+- **VPC-A NO puede comunicarse con VPC-C** a través de VPC-B.
+- El peering es **solo entre los dos VPCs directamente conectados**.
+- Para que VPC-A hable con VPC-C, debes crear un **tercer peering directo** entre ellas.
+
+Esta limitación es fundamental: VPC Peering **nunca es transitivo** sin importar cuántos peerings existan en la cadena.
+
+### Restricción de CIDR
+
+Los bloques CIDR de las VPCs en un peering **no pueden solaparse**:
+
+| Escenario | Resultado |
 |---|---|
-| `10.1.0.0/16` | local |
-| `10.2.0.0/16` | pcx-xxxxx (peering) |
+| VPC-A `10.0.0.0/16` ↔ VPC-B `10.1.0.0/16` | Permitido — CIDRs distintos |
+| VPC-A `10.0.0.0/16` ↔ VPC-B `10.0.0.0/24` | No permitido — CIDRs solapados |
 
-**Route table de VPC 2:**
+Si los CIDRs se solapan, la conexión de peering no puede crearse. Debes planificar el espacio de direcciones antes de implementar peering a escala.
 
-| Destination | Target |
+### Tipos de Peering
+
+| Tipo | Descripción | Consideraciones |
+|---|---|---|
+| **Misma cuenta / misma región** | El caso más simple. Sin latencia adicional entre AZs si los recursos están en la misma AZ. | Transferencia dentro de la misma AZ es gratuita. |
+| **Misma cuenta / diferente región** | Peering inter-region. El tráfico viaja por el backbone de AWS. | Costo de transferencia de datos entre regiones. |
+| **Diferente cuenta** | El propietario de la VPC de destino debe aceptar la solicitud. | Requiere ARN de la VPC de destino para identificarla. |
+
+### DNS a través de Peering
+
+Por defecto, la resolución DNS no funciona correctamente a través de un peering. Para resolver nombres de host DNS de recursos en la VPC peer con sus IPs privadas, debes habilitar:
+
+- **"DNS resolution from accepter VPC"** en la configuración del peering.
+- **"DNS resolution from requester VPC"** en la configuración del peering.
+
+Sin esta configuración, los nombres DNS de recursos en la VPC peer resolverán a IPs públicas en lugar de privadas.
+
+### Escalabilidad: Fórmula n*(n-1)/2
+
+El número de conexiones de peering necesarias para una malla completa (full mesh) crece cuadráticamente:
+
+| Número de VPCs | Peerings necesarios |
 |---|---|
-| `10.2.0.0/16` | local |
-| `10.1.0.0/16` | pcx-xxxxx (peering) |
+| 2 | 1 |
+| 3 | 3 |
+| 4 | 6 |
+| 5 | 10 |
+| 10 | 45 |
+| 20 | 190 |
 
-## Limitación: No es Transitivo
+Para más de 5-10 VPCs, la complejidad se vuelve inmanejable. En esos casos, **Transit Gateway** es la solución correcta.
 
-Si VPC A tiene peering con VPC B, y VPC B tiene peering con VPC C, **VPC A NO puede comunicarse con VPC C** a través de VPC B. Esto se conoce como **transitive peering** y no está soportado.
+## Comparativa: VPC Peering vs Transit Gateway
 
-Para que VPC A hable con VPC C, necesitas un **peering directo** entre ambas.
+| Característica | VPC Peering | Transit Gateway |
+|---|---|---|
+| **Enrutamiento transitivo** | No | Sí |
+| **Conexiones necesarias (5 VPCs)** | 10 peerings | 5 attachments |
+| **Costo** | Sin cargo por peering (solo datos) | Por hora de attachment + datos procesados |
+| **Complejidad** | Alta a escala | Baja (hub centralizado) |
+| **Límite de conexiones** | 50 activas por VPC (solicitable aumento) | 5000 attachments por TGW |
+| **Multicast** | No | Sí |
+| **Casos de uso** | Pocas VPCs, conectividad simple | Muchas VPCs, enrutamiento complejo |
 
-```
-VPC A ↔ VPC B ↔ VPC C    ✗ (no transitivo)
-VPC A ↔ VPC C             ✓ (peering directo)
-```
+## Casos de Uso
+
+| Caso de Uso | Descripción |
+|---|---|
+| **Compartir servicios entre equipos** | Un equipo de seguridad tiene una VPC con herramientas compartidas; otros equipos se conectan mediante peering. |
+| **Separación de ambientes** | VPC de producción conectada a VPC de logging o monitoreo por peering. |
+| **Arquitectura multi-cuenta simple** | Cuando el número de VPCs es pequeño (2-5) y no justifica el costo de Transit Gateway. |
+| **Acceso a servicios de base de datos** | Una VPC de aplicación accede a una VPC de datos mediante peering. |
+
+## Configuración
+
+1. **El VPC Solicitante (requester):** desde la cuenta/VPC de origen, crea la solicitud de peering especificando el ID de la VPC de destino (y la región/cuenta si es cross-region/cross-account).
+2. **El VPC Aceptante (accepter):** el propietario de la VPC de destino debe aceptar la solicitud de peering en la consola o mediante CLI/SDK.
+3. **Actualizar tablas de rutas del requester:** agrega una ruta en la tabla de rutas de las subnets de la VPC solicitante apuntando al CIDR de la VPC peer como target el peering connection ID (pcx-xxx).
+4. **Actualizar tablas de rutas del accepter:** igualmente, agrega una ruta en la tabla de rutas de las subnets de la VPC aceptante apuntando al CIDR de la VPC solicitante. Ambos lados son necesarios.
+5. **Verificar security groups:** asegúrate de que los security groups de los recursos de destino permitan tráfico desde el CIDR de la VPC de origen.
+6. **Habilitar DNS resolution (opcional):** si necesitas resolución DNS privada a través del peering, habilita las opciones DNS en la configuración del peering.
 
 <Callout type="warn">
-**Para el examen SAA-C03:** VPC Peering NO es transitivo — necesitas un peering directo entre cada par de VPCs. No tiene costo crear el peering pero la transferencia de datos entre AZs sí tiene costo. Funciona entre regiones y entre cuentas diferentes.
+**Exam Tips — SAA-C03:**
+
+- **No hay peering transitivo:** si VPC-A ↔ VPC-B y VPC-B ↔ VPC-C, VPC-A NO puede llegar a VPC-C. Siempre necesitas un peering directo entre cada par de VPCs que necesiten comunicarse.
+- **Los CIDRs no pueden solaparse:** si el escenario tiene VPCs con rangos de IP que se superponen, VPC Peering no es posible. Considera PrivateLink en ese caso.
+- **Debes actualizar las tablas de rutas en AMBOS lados:** crear el peering no es suficiente. Si olvidas actualizar las rutas en una de las VPCs, el tráfico no fluirá.
+- **Habilitar DNS resolution para resolución de nombres privados:** sin activar esta opción, los DNS resolverán a IPs públicas en lugar de privadas a través del peering.
+- **VPC Peering no escala bien:** para escenarios con muchas VPCs, la respuesta correcta es Transit Gateway, no VPC Peering.
+- **El peering no tiene costo propio** — solo pagas por la transferencia de datos (especialmente entre regiones o AZs distintas).
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — VPC Peering:**
+
+| Propiedad | Valor |
+|---|---|
+| **Enrutamiento transitivo** | No — nunca |
+| **Solapamiento de CIDR** | No permitido |
+| **Cross-account** | Sí |
+| **Cross-region** | Sí (inter-region peering) |
+| **Fórmula de conexiones** | n * (n-1) / 2 para full mesh |
+| **Costo del peering** | Gratis (pagas por transferencia de datos) |
+| **Actualizar route tables** | Obligatorio en AMBAS VPCs |
+| **DNS resolution** | Debe habilitarse explícitamente |
+| **Límite por VPC** | 50 conexiones activas (ampliable) |
+| **Vs Transit Gateway** | Peering para pocas VPCs; TGW para muchas |
 </Callout>

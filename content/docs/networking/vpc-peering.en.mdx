@@ -1,54 +1,142 @@
 ---
 title: "VPC Peering"
-description: "VPC Peering — direct network connection between two VPCs for bidirectional communication."
+description: "Private network connection between two VPCs — same or different account and region — without traversing the internet."
 ---
 
 ## Overview
 
-A **VPC Peering** is a network connection between two VPCs that allows routing traffic between them. Resources in both VPCs can communicate as if they were on the same network.
+A **VPC Peering** is a private network connection between two VPCs that allows their resources to communicate with each other using **private IP addresses**, as if they were on the same network. Traffic does not traverse the internet, a VPN, or an external gateway — it travels directly through the AWS network infrastructure.
 
-## Features
+Peering can be established between VPCs in:
+- The **same account and region**
+- The **same account but different region** (inter-region peering)
+- **Different AWS accounts** (cross-account peering)
 
-- Works between VPCs in the **same region**, **different regions** and **different AWS accounts**
-- **No charge** for creating the peering
-- Data transfer **within the same AZ** is free
-- Data transfer **across AZs** incurs a charge
+## Architecture
 
-## How to Configure
+<Mermaid chart={`
+graph TD
+  A["VPC-A\n10.0.0.0/16"]
+  B["VPC-B\n10.1.0.0/16"]
+  C["VPC-C\n10.2.0.0/16"]
 
-1. One VPC sends a **peering request** to the other VPC
-2. The owner of the second VPC **accepts** the request
-3. Configure **routes** in both route tables pointing to the peering
+  A <-->|"Peering 1"| B
+  B <-->|"Peering 2"| C
+  A <-->|"Peering 3 — required"| C
 
-### Route Example
+  note["Formula: n x n-1 / 2\n3 VPCs = 3 peerings\n4 VPCs = 6 peerings\n10 VPCs = 45 peerings"]
+`} />
 
-For VPC 1 (`10.1.0.0/16`) connected to VPC 2 (`10.2.0.0/16`):
+## Key Concepts
 
-**VPC 1 route table:**
+### No Transitive Peering
 
-| Destination | Target |
+This is the most important VPC Peering concept for the exam:
+
+- If VPC-A peers with VPC-B, and VPC-B peers with VPC-C...
+- **VPC-A CANNOT communicate with VPC-C** through VPC-B.
+- Peering is **only between the two directly connected VPCs**.
+- For VPC-A to talk to VPC-C, you must create a **third direct peering** between them.
+
+This limitation is fundamental: VPC Peering is **never transitive** regardless of how many peerings exist in a chain.
+
+### CIDR Restriction
+
+The CIDR blocks of VPCs in a peering **cannot overlap**:
+
+| Scenario | Result |
 |---|---|
-| `10.1.0.0/16` | local |
-| `10.2.0.0/16` | pcx-xxxxx (peering) |
+| VPC-A `10.0.0.0/16` ↔ VPC-B `10.1.0.0/16` | Allowed — distinct CIDRs |
+| VPC-A `10.0.0.0/16` ↔ VPC-B `10.0.0.0/24` | Not allowed — overlapping CIDRs |
 
-**VPC 2 route table:**
+If CIDRs overlap, the peering connection cannot be created. You must plan the address space before implementing peering at scale.
 
-| Destination | Target |
+### Peering Types
+
+| Type | Description | Considerations |
+|---|---|---|
+| **Same account / same region** | Simplest case. No additional latency between AZs if resources are in the same AZ. | Transfer within the same AZ is free. |
+| **Same account / different region** | Inter-region peering. Traffic travels over the AWS backbone. | Data transfer cost between regions. |
+| **Different account** | The target VPC owner must accept the request. | Requires the target VPC ARN to identify it. |
+
+### DNS Resolution Across Peering
+
+By default, DNS resolution does not work correctly across a peering. To resolve DNS hostnames of resources in the peer VPC with their private IPs, you must enable:
+
+- **"DNS resolution from accepter VPC"** in the peering configuration.
+- **"DNS resolution from requester VPC"** in the peering configuration.
+
+Without this setting, DNS names of resources in the peer VPC will resolve to public IPs instead of private ones.
+
+### Scalability: n*(n-1)/2 Formula
+
+The number of peering connections needed for a full mesh grows quadratically:
+
+| Number of VPCs | Peerings Required |
 |---|---|
-| `10.2.0.0/16` | local |
-| `10.1.0.0/16` | pcx-xxxxx (peering) |
+| 2 | 1 |
+| 3 | 3 |
+| 4 | 6 |
+| 5 | 10 |
+| 10 | 45 |
+| 20 | 190 |
 
-## Limitation: Not Transitive
+For more than 5-10 VPCs, the complexity becomes unmanageable. In those cases, **Transit Gateway** is the correct solution.
 
-If VPC A peers with VPC B, and VPC B peers with VPC C, **VPC A CANNOT communicate with VPC C** through VPC B. This is known as **transitive peering** and is not supported.
+## Comparison: VPC Peering vs Transit Gateway
 
-For VPC A to talk to VPC C you need a **direct peering** between them.
+| Feature | VPC Peering | Transit Gateway |
+|---|---|---|
+| **Transitive routing** | No | Yes |
+| **Connections needed (5 VPCs)** | 10 peerings | 5 attachments |
+| **Cost** | No charge for peering (data only) | Per attachment-hour + data processed |
+| **Complexity** | High at scale | Low (centralized hub) |
+| **Connection limit** | 50 active per VPC (can request increase) | 5000 attachments per TGW |
+| **Multicast** | No | Yes |
+| **Use cases** | Few VPCs, simple connectivity | Many VPCs, complex routing |
 
-```
-VPC A ↔ VPC B ↔ VPC C    ✗ (not transitive)
-VPC A ↔ VPC C             ✓ (direct peering)
-```
+## Use Cases
+
+| Use Case | Description |
+|---|---|
+| **Sharing services across teams** | A security team has a VPC with shared tools; other teams connect via peering. |
+| **Environment separation** | Production VPC connected to logging or monitoring VPC via peering. |
+| **Simple multi-account architecture** | When the number of VPCs is small (2-5) and does not justify the cost of Transit Gateway. |
+| **Database service access** | An application VPC accesses a data VPC through peering. |
+
+## Configuration Steps
+
+1. **The Requester VPC:** from the source account/VPC, create the peering request specifying the destination VPC ID (and region/account if cross-region/cross-account).
+2. **The Accepter VPC:** the owner of the destination VPC must accept the peering request in the console or via CLI/SDK.
+3. **Update requester route tables:** add a route in the route tables of the requester VPC subnets pointing to the peer VPC CIDR, with the peering connection ID (pcx-xxx) as the target.
+4. **Update accepter route tables:** likewise, add a route in the route tables of the accepter VPC subnets pointing to the requester VPC CIDR. Both sides are required.
+5. **Verify security groups:** ensure the security groups of target resources allow traffic from the source VPC CIDR.
+6. **Enable DNS resolution (optional):** if you need private DNS resolution across the peering, enable the DNS options in the peering configuration.
 
 <Callout type="warn">
-**For the SAA-C03 exam:** VPC Peering is NOT transitive — you need a direct peering between each pair of VPCs. No charge to create the peering but data transfer across AZs is charged. Works across regions and different accounts.
+**Exam Tips — SAA-C03:**
+
+- **No transitive peering:** if VPC-A ↔ VPC-B and VPC-B ↔ VPC-C, VPC-A CANNOT reach VPC-C. You always need a direct peering between every pair of VPCs that need to communicate.
+- **CIDRs cannot overlap:** if the scenario has VPCs with overlapping IP ranges, VPC Peering is not possible. Consider PrivateLink in that case.
+- **You must update route tables on BOTH sides:** creating the peering is not enough. If you forget to update routes in one of the VPCs, traffic will not flow.
+- **Enable DNS resolution for private name resolution:** without enabling this option, DNS will resolve to public IPs instead of private IPs across the peering.
+- **VPC Peering does not scale well:** for scenarios with many VPCs, the correct answer is Transit Gateway, not VPC Peering.
+- **Peering itself has no cost** — you only pay for data transfer (especially between regions or different AZs).
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — VPC Peering:**
+
+| Property | Value |
+|---|---|
+| **Transitive routing** | No — never |
+| **CIDR overlap** | Not allowed |
+| **Cross-account** | Yes |
+| **Cross-region** | Yes (inter-region peering) |
+| **Connections formula** | n * (n-1) / 2 for full mesh |
+| **Peering cost** | Free (pay for data transfer) |
+| **Update route tables** | Required on BOTH VPCs |
+| **DNS resolution** | Must be explicitly enabled |
+| **Limit per VPC** | 50 active connections (can request increase) |
+| **Vs Transit Gateway** | Peering for few VPCs; TGW for many |
 </Callout>

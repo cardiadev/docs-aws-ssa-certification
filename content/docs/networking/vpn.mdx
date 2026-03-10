@@ -1,48 +1,147 @@
 ---
-title: "VPN"
-description: "Virtual Private Network — conexión segura entre tu data center y AWS mediante túneles IPsec."
+title: "AWS Site-to-Site VPN"
+description: "Conexión VPN administrada sobre internet usando IPSec entre tu red on-premises y AWS."
 ---
 
 ## Resumen
 
-Una **VPN (Virtual Private Network)** permite conectar de forma segura tu red on-premises con tus recursos privados en AWS. El tráfico se envía a través de un **túnel IPsec** cifrado que viaja por internet.
+AWS Site-to-Site VPN es un servicio administrado que establece una conexión cifrada mediante el protocolo **IPSec** entre tu centro de datos on-premises (o red corporativa) y tu VPC en AWS. La conexión viaja a través del **internet público**, pero los datos van cifrados de extremo a extremo. Es una solución rápida de implementar (minutos/horas) y rentable para conectividad híbrida.
 
-## Componentes
+## Arquitectura
 
-| Componente | Ubicación | Función |
-|---|---|---|
-| **VPN Gateway** (VGW) | Lado AWS | Termina el túnel VPN en AWS; se adjunta a una VPC |
-| **Customer Gateway** (CGW) | Lado on-premises | Termina el túnel VPN en tu red; requiere IP pública |
-| **Túnel IPsec** | Internet | Conexión cifrada entre VGW y CGW |
+<Mermaid chart={`
+flowchart LR
+  DC["On-prem Data Center"]
+  CGW["Customer Gateway (CGW)"]
+  T1["Tunnel 1 — AZ Primaria"]
+  T2["Tunnel 2 — AZ Secundaria"]
+  VGW["Virtual Private Gateway (VGW)"]
+  VPC["VPC"]
 
-## Cómo Funciona
+  DC --> CGW
+  CGW --> T1
+  CGW --> T2
+  T1 --> VGW
+  T2 --> VGW
+  VGW --> VPC
+`} />
 
-1. Despliegas un **VPN Gateway** y lo adjuntas a tu VPC
-2. Configuras un **Customer Gateway** en tu red on-premises con una IP pública
-3. Se establece un **túnel IPsec** cifrado entre ambos endpoints a través de internet
+## Conceptos Clave
 
-## Enrutamiento
+### Componentes
 
-Dos opciones para que AWS conozca las rutas de tu red on-premises:
-
-- **Estático** — defines manualmente una ruta en la route table de AWS (ej: `192.168.0.0/16` → VPN Gateway)
-- **Dinámico** — usas **BGP** para intercambiar rutas automáticamente entre el VGW y el CGW
-
-## Límites y Rendimiento
-
-| Métrica | Valor |
+| Componente | Descripción |
 |---|---|
-| **Ancho de banda máximo** por túnel | 1.25 Gbps |
-| **Paquetes por segundo** | 140,000 |
-| **MTU** | 1,446 bytes |
+| **Virtual Private Gateway (VGW)** | El endpoint VPN del lado de AWS. Se adjunta a tu VPC. |
+| **Customer Gateway (CGW)** | Recurso AWS que representa tu dispositivo físico o software VPN on-premises. Requiere IP pública estática. |
+| **Site-to-Site VPN Connection** | El enlace lógico entre el VGW y el CGW. Siempre incluye 2 túneles. |
+| **Transit Gateway (TGW)** | Alternativa al VGW cuando necesitas conectar múltiples VPCs o usar VPN Acelerado. |
 
-Puedes usar **ECMP** (Equal-Cost Multi-Path) con múltiples túneles VPN para aumentar el ancho de banda total.
+### Túneles Redundantes
 
-## Pricing
+Cada conexión Site-to-Site VPN incluye **siempre 2 túneles IPSec**, cada uno terminando en una Availability Zone diferente en el lado de AWS. Esto garantiza alta disponibilidad:
 
-- Cobro por **hora de conexión VPN** disponible
-- Cobro por **datos de salida** (egress) desde AWS
+- **Túnel 1 (primario):** activo en condiciones normales.
+- **Túnel 2 (secundario):** failover automático si el Túnel 1 falla.
+- Ambos túneles deben configurarse en el dispositivo CGW para aprovechar la redundancia.
+- Si ambos túneles están activos, AWS puede usar cualquiera de los dos para enrutar tráfico.
+
+### Tipos de Enrutamiento
+
+| Tipo | Descripción | Requisitos |
+|---|---|---|
+| **Enrutamiento Estático** | Las rutas se configuran manualmente en AWS y en el CGW. Más simple. | No requiere BGP. |
+| **Enrutamiento Dinámico (BGP)** | Las rutas se intercambian automáticamente. Failover automático de rutas. | Requiere ASN de BGP (público o privado 64512-65534). |
+
+- **BGP ASN recomendado:** usa ASN privado (64512-65534) para redes on-premises que no anuncian rutas en internet.
+- Con BGP, AWS anuncia automáticamente las rutas del VPC al CGW y viceversa.
+- BGP permite **detección de rutas inaccesibles** y failover más rápido.
+
+### Throughput
+
+- **Máximo:** hasta **1.25 Gbps por túnel**.
+- El throughput real puede verse limitado por el ancho de banda del dispositivo CGW y la congestión de internet.
+- Con ECMP (Equal-Cost Multi-Path) sobre Transit Gateway, puedes agregar múltiples túneles para mayor throughput.
+
+### VPN Acelerado (Accelerated Site-to-Site VPN)
+
+- Utiliza **AWS Global Accelerator** para enrutar el tráfico VPN a través de la red troncal privada de AWS en lugar del internet público.
+- Reduce la latencia y la pérdida de paquetes de forma significativa.
+- Se habilita al crear la conexión VPN (no se puede habilitar en conexiones existentes).
+- **Requiere Transit Gateway** como endpoint — no compatible con VGW.
+- Tiene costo adicional por el uso de Global Accelerator.
+
+### VPN CloudHub
+
+Patrón **hub-and-spoke** que permite conectar múltiples sitios remotos entre sí a través de un único VGW en AWS:
+
+- Cada sitio tiene su propio CGW y conexión VPN al mismo VGW.
+- AWS actúa como hub de tránsito entre los sitios.
+- Los sitios pueden comunicarse entre sí a través del VGW sin conectarse directamente.
+- Requiere BGP y que cada CGW use un ASN único.
+- Ideal para organizaciones con múltiples sucursales que necesitan conectividad entre ellas y con AWS.
+
+## Casos de Uso
+
+| Caso de Uso | Descripción | Por qué VPN |
+|---|---|---|
+| **Conectividad Híbrida Inicial** | Extender red on-premises a AWS VPC durante migración. | Rápido de configurar, bajo costo frente a DX. |
+| **Recuperación ante Desastres (DR)** | Backup de conectividad cuando Direct Connect falla. | VPN como failover de DX — setup en minutos. |
+| **Multi-sitio / CloudHub** | Conectar múltiples oficinas entre sí y con AWS. | Un solo VGW como hub central. |
+| **Dev y Test** | Acceso temporal a recursos AWS desde oficina. | Económico para tráfico bajo o esporádico. |
+| **Cifrado sobre Direct Connect** | Añadir cifrado IPSec sobre una conexión DX. | DX no cifra por defecto; VPN sobre DX lo soluciona. |
+
+## Comparativa: VPN vs Direct Connect
+
+| Característica | Site-to-Site VPN | Direct Connect |
+|---|---|---|
+| **Costo** | Bajo (~$0.05/hr + transferencia) | Alto (puerto + partner + transferencia) |
+| **Tiempo de Setup** | Minutos a horas | Semanas a meses |
+| **Ancho de Banda Máximo** | 1.25 Gbps/túnel | 1 / 10 / 100 Gbps |
+| **Confiabilidad** | Variable (depende de internet) | Alta (conexión dedicada) |
+| **Latencia** | Variable (internet) | Baja y consistente |
+| **Cifrado** | Sí (IPSec incluido) | No por defecto |
+| **Ruta del tráfico** | Internet público | Red privada de AWS |
+| **Redundancia integrada** | 2 túneles por conexión | Requiere múltiples conexiones DX |
+| **Mejor para** | Bajo tráfico, DR, inicio rápido | Alto tráfico, producción crítica |
+
+## Configuración
+
+1. **Crear el Virtual Private Gateway (VGW):** en la consola VPC, adjúntalo a tu VPC objetivo. Alternativamente usa un Transit Gateway.
+2. **Crear el Customer Gateway (CGW):** especifica la IP pública del dispositivo on-premises y el ASN de BGP si usas enrutamiento dinámico.
+3. **Crear la conexión Site-to-Site VPN:** selecciona VGW (o TGW) y el CGW. Elige enrutamiento estático o dinámico (BGP). Opcionalmente habilita VPN Acelerado.
+4. **Descargar la configuración:** AWS genera un archivo de configuración específico para los dispositivos más comunes (Cisco, Juniper, Palo Alto, Fortinet, etc.).
+5. **Configurar el dispositivo CGW on-premises:** aplica la configuración descargada. Asegúrate de configurar ambos túneles.
+6. **Actualizar tablas de rutas:** agrega rutas en las subnets de tu VPC hacia la red on-premises, o habilita **Route Propagation** en la tabla de rutas si usas BGP.
+7. **Verificar el estado:** ambos túneles deben aparecer en estado **"Up"** en la consola de AWS. Genera tráfico desde on-premises para confirmar.
 
 <Callout type="warn">
-**Para el examen SAA-C03:** El VPN Gateway está en el lado AWS y el Customer Gateway en el lado on-premises. El tráfico viaja cifrado por internet (a diferencia de Direct Connect). El ancho de banda máximo por túnel es 1.25 Gbps. Puedes usar enrutamiento estático o dinámico (BGP).
+**Exam Tips — SAA-C03:**
+
+- **Siempre 2 túneles** por conexión VPN, cada uno en una AZ diferente. Nunca es posible tener solo 1 túnel; esto es por diseño para alta disponibilidad.
+- **BGP para enrutamiento dinámico:** si el escenario menciona failover automático de rutas, múltiples rutas, o propagación automática, la respuesta implica BGP (enrutamiento dinámico).
+- **Máximo 1.25 Gbps por túnel:** si el requisito es más ancho de banda garantizado, la respuesta correcta es Direct Connect, no VPN.
+- **VPN viaja por internet público:** no es una conexión dedicada. Si el examen pregunta por conexión privada que no pasa por internet, la respuesta es Direct Connect.
+- **VPN Acelerado requiere Transit Gateway** (no VGW) y utiliza AWS Global Accelerator.
+- **VPN CloudHub:** cuando veas múltiples oficinas/sucursales que necesitan conectarse entre sí a través de AWS, piensa en CloudHub (patrón hub-and-spoke con un único VGW).
+- **DX + VPN como backup:** el patrón clásico de alta disponibilidad híbrida es Direct Connect (primario) + Site-to-Site VPN (backup/failover).
+- **VPN sobre DX:** si necesitas cifrado sobre Direct Connect, creas una VPN (IPSec) que viaja dentro del túnel DX.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — AWS Site-to-Site VPN:**
+
+| Propiedad | Valor |
+|---|---|
+| **Protocolo** | IPSec |
+| **Túneles por conexión** | 2 (siempre, en AZs distintas) |
+| **Ancho de banda máximo** | 1.25 Gbps por túnel |
+| **Gateway en AWS** | VGW o Transit Gateway |
+| **Enrutamiento** | Estático o BGP (dinámico) |
+| **Cifrado** | Sí — IPSec incluido por defecto |
+| **Ruta del tráfico** | Internet público |
+| **Tiempo de setup** | Minutos a horas |
+| **VPN Acelerado** | Requiere TGW + Global Accelerator |
+| **CloudHub** | Hub-and-spoke para múltiples sitios remotos |
+| **Costo aproximado** | ~$0.05/hr por conexión + datos transferidos |
 </Callout>

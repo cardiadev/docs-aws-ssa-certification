@@ -1,48 +1,147 @@
 ---
-title: "VPN"
-description: "Virtual Private Network — secure connection between your data center and AWS via IPsec tunnels."
+title: "AWS Site-to-Site VPN"
+description: "Managed IPSec VPN over the internet connecting your on-premises network to AWS."
 ---
 
 ## Overview
 
-A **VPN (Virtual Private Network)** allows you to securely connect your on-premises network to your private resources in AWS. Traffic is sent through an **encrypted IPsec tunnel** that travels over the internet.
+AWS Site-to-Site VPN is a managed service that establishes an encrypted connection using the **IPSec** protocol between your on-premises data center (or corporate network) and your VPC in AWS. The connection travels over the **public internet**, but data is encrypted end-to-end. It is fast to deploy (minutes to hours) and cost-effective for hybrid connectivity.
 
-## Components
+## Architecture
 
-| Component | Location | Function |
-|---|---|---|
-| **VPN Gateway** (VGW) | AWS side | Terminates the VPN tunnel on AWS; attached to a VPC |
-| **Customer Gateway** (CGW) | On-premises side | Terminates the VPN tunnel on your network; requires a public IP |
-| **IPsec tunnel** | Internet | Encrypted connection between VGW and CGW |
+<Mermaid chart={`
+flowchart LR
+  DC["On-prem Data Center"]
+  CGW["Customer Gateway (CGW)"]
+  T1["Tunnel 1 — Primary AZ"]
+  T2["Tunnel 2 — Secondary AZ"]
+  VGW["Virtual Private Gateway (VGW)"]
+  VPC["VPC"]
 
-## How it Works
+  DC --> CGW
+  CGW --> T1
+  CGW --> T2
+  T1 --> VGW
+  T2 --> VGW
+  VGW --> VPC
+`} />
 
-1. Deploy a **VPN Gateway** and attach it to your VPC
-2. Configure a **Customer Gateway** on your on-premises network with a public IP
-3. An **encrypted IPsec tunnel** is established between both endpoints over the internet
+## Key Concepts
 
-## Routing
+### Components
 
-Two options for AWS to learn your on-premises routes:
-
-- **Static** — manually define a route in the AWS route table (e.g. `192.168.0.0/16` → VPN Gateway)
-- **Dynamic** — use **BGP** to automatically exchange routes between the VGW and CGW
-
-## Limits and Performance
-
-| Metric | Value |
+| Component | Description |
 |---|---|
-| **Max bandwidth** per tunnel | 1.25 Gbps |
-| **Packets per second** | 140,000 |
-| **MTU** | 1,446 bytes |
+| **Virtual Private Gateway (VGW)** | The VPN endpoint on the AWS side. Attached to your VPC. |
+| **Customer Gateway (CGW)** | An AWS resource that represents your physical or software VPN device on-premises. Requires a static public IP. |
+| **Site-to-Site VPN Connection** | The logical link between the VGW and the CGW. Always includes 2 tunnels. |
+| **Transit Gateway (TGW)** | Alternative to VGW when connecting multiple VPCs or using Accelerated VPN. |
 
-You can use **ECMP** (Equal-Cost Multi-Path) with multiple VPN tunnels to increase total bandwidth.
+### Redundant Tunnels
 
-## Pricing
+Every Site-to-Site VPN connection always includes **2 IPSec tunnels**, each terminating in a different Availability Zone on the AWS side. This ensures high availability:
 
-- Charged per **VPN connection hour** available
-- Charged for **egress data** out of AWS
+- **Tunnel 1 (primary):** active under normal conditions.
+- **Tunnel 2 (secondary):** automatic failover if Tunnel 1 fails.
+- Both tunnels must be configured on the CGW device to take advantage of redundancy.
+- When both tunnels are up, AWS can use either one to route traffic.
+
+### Routing Types
+
+| Type | Description | Requirements |
+|---|---|---|
+| **Static Routing** | Routes are configured manually on both sides. Simpler. | No BGP required. |
+| **Dynamic Routing (BGP)** | Routes are exchanged automatically. Automatic route failover. | Requires BGP ASN (public or private 64512-65534). |
+
+- **Recommended BGP ASN:** use a private ASN (64512-65534) for on-premises networks not advertising routes on the internet.
+- With BGP, AWS automatically advertises VPC routes to the CGW and vice versa.
+- BGP enables **unreachable route detection** and faster failover.
+
+### Throughput
+
+- **Maximum:** up to **1.25 Gbps per tunnel**.
+- Actual throughput may be limited by the CGW device's bandwidth and internet congestion.
+- With ECMP (Equal-Cost Multi-Path) over Transit Gateway, you can aggregate multiple tunnels for higher throughput.
+
+### Accelerated Site-to-Site VPN
+
+- Uses **AWS Global Accelerator** to route VPN traffic through the AWS private backbone instead of the public internet.
+- Significantly reduces latency and packet loss.
+- Must be enabled when creating the VPN connection (cannot be enabled on existing connections).
+- **Requires Transit Gateway** as the endpoint — not compatible with VGW.
+- Incurs an additional charge for Global Accelerator usage.
+
+### VPN CloudHub
+
+A **hub-and-spoke** pattern that allows multiple remote sites to communicate with each other through a single VGW in AWS:
+
+- Each site has its own CGW and VPN connection to the same VGW.
+- AWS acts as the transit hub between sites.
+- Sites can communicate with each other through the VGW without direct connections.
+- Requires BGP and each CGW must use a unique ASN.
+- Ideal for organizations with multiple branch offices needing connectivity between them and with AWS.
+
+## Use Cases
+
+| Use Case | Description | Why VPN |
+|---|---|---|
+| **Initial Hybrid Connectivity** | Extend on-premises network to AWS VPC during migration. | Fast to set up, low cost compared to DX. |
+| **Disaster Recovery (DR)** | Backup connectivity when Direct Connect fails. | VPN as DX failover — setup in minutes. |
+| **Multi-site / CloudHub** | Connect multiple offices to each other and AWS. | Single VGW as a central hub. |
+| **Dev and Test** | Temporary access to AWS resources from office. | Cost-effective for low or sporadic traffic. |
+| **Encryption over Direct Connect** | Add IPSec encryption over a DX connection. | DX does not encrypt by default; VPN over DX solves this. |
+
+## Comparison: VPN vs Direct Connect
+
+| Feature | Site-to-Site VPN | Direct Connect |
+|---|---|---|
+| **Cost** | Low (~$0.05/hr + transfer) | High (port + partner + transfer) |
+| **Setup Time** | Minutes to hours | Weeks to months |
+| **Maximum Bandwidth** | 1.25 Gbps/tunnel | 1 / 10 / 100 Gbps |
+| **Reliability** | Variable (depends on internet) | High (dedicated connection) |
+| **Latency** | Variable (internet) | Low and consistent |
+| **Encryption** | Yes (IPSec included) | No by default |
+| **Traffic Path** | Public internet | AWS private network |
+| **Built-in Redundancy** | 2 tunnels per connection | Requires multiple DX connections |
+| **Best For** | Low traffic, DR, quick start | High traffic, mission-critical production |
+
+## Configuration Steps
+
+1. **Create the Virtual Private Gateway (VGW):** in the VPC console, attach it to your target VPC. Alternatively use a Transit Gateway.
+2. **Create the Customer Gateway (CGW):** specify the public IP of the on-premises device and the BGP ASN if using dynamic routing.
+3. **Create the Site-to-Site VPN connection:** select the VGW (or TGW) and the CGW. Choose static or dynamic (BGP) routing. Optionally enable Accelerated VPN.
+4. **Download the configuration:** AWS generates a device-specific configuration file for popular vendors (Cisco, Juniper, Palo Alto, Fortinet, etc.).
+5. **Configure the on-premises CGW device:** apply the downloaded configuration. Make sure to configure both tunnels.
+6. **Update route tables:** add routes in your VPC subnets pointing to the on-premises network, or enable **Route Propagation** on the route table if using BGP.
+7. **Verify status:** both tunnels should show as **"Up"** in the AWS console. Generate traffic from on-premises to confirm end-to-end connectivity.
 
 <Callout type="warn">
-**For the SAA-C03 exam:** The VPN Gateway is on the AWS side and the Customer Gateway is on the on-premises side. Traffic travels encrypted over the internet (unlike Direct Connect). Max bandwidth per tunnel is 1.25 Gbps. You can use static or dynamic (BGP) routing.
+**Exam Tips — SAA-C03:**
+
+- **Always 2 tunnels** per VPN connection, each in a different AZ. It is by design — you cannot have just 1 tunnel.
+- **BGP for dynamic routing:** if the scenario mentions automatic route failover, multiple paths, or automatic route propagation, the answer involves BGP (dynamic routing).
+- **Maximum 1.25 Gbps per tunnel:** if the requirement is higher guaranteed bandwidth, the correct answer is Direct Connect, not VPN.
+- **VPN travels over the public internet:** it is not a dedicated connection. If the exam asks for a private connection that does not traverse the internet, the answer is Direct Connect.
+- **Accelerated VPN requires Transit Gateway** (not VGW) and uses AWS Global Accelerator.
+- **VPN CloudHub:** when you see multiple branch offices that need to connect to each other through AWS, think CloudHub (hub-and-spoke pattern with a single VGW).
+- **DX + VPN as backup:** the classic hybrid high-availability pattern is Direct Connect (primary) + Site-to-Site VPN (backup/failover).
+- **VPN over DX:** if you need encryption over Direct Connect, you create a VPN (IPSec) that travels inside the DX connection.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — AWS Site-to-Site VPN:**
+
+| Property | Value |
+|---|---|
+| **Protocol** | IPSec |
+| **Tunnels per connection** | 2 (always, in different AZs) |
+| **Maximum bandwidth** | 1.25 Gbps per tunnel |
+| **AWS Gateway** | VGW or Transit Gateway |
+| **Routing** | Static or BGP (dynamic) |
+| **Encryption** | Yes — IPSec included by default |
+| **Traffic path** | Public internet |
+| **Setup time** | Minutes to hours |
+| **Accelerated VPN** | Requires TGW + Global Accelerator |
+| **CloudHub** | Hub-and-spoke for multiple remote sites |
+| **Approximate cost** | ~$0.05/hr per connection + data transferred |
 </Callout>

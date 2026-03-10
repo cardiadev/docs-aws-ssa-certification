@@ -1,55 +1,138 @@
 ---
 title: "Routing in VPC"
-description: "Route tables, local routes and how traffic flows inside a VPC."
+description: "Route tables, longest prefix match, local routes, and how traffic flows within and outside a VPC."
 ---
 
 ## Overview
 
-Every VPC has a **VPC router** responsible for routing traffic between subnets and in/out of the VPC. The router has an interface in every subnet, reachable at the **network + 1** address (e.g. if the subnet is `192.168.1.0/24`, the router is at `192.168.1.1`).
+Every VPC has a **VPC router** that routes traffic between subnets and to and from the VPC. The router has an interface in every subnet, reachable at the **network + 1** address (e.g., for subnet `10.0.1.0/24`, the router is at `10.0.1.1`).
 
-## Route Tables
+Routing is controlled by **route tables**: sets of rules (routes) that the router consults to determine where to send each packet. Each route has a **Destination** (CIDR target) and a **Target** (next hop).
 
-A **route table** is a set of rules the router uses to forward network traffic. Each rule is called a **route**.
+## Architecture
 
-### How Routing Works
+<Mermaid chart={`
+flowchart LR
+  EC2["EC2 Instance\n10.0.1.5"]
+  RT["Route Table\nRoute Evaluation"]
+  IGW["IGW\n(Internet)"]
+  Local["VPC Local\n10.0.0.0/16"]
+  VGW["VGW\n(On-premises)"]
 
-1. A packet leaves a subnet
-2. The router examines the packet's **destination IP**
-3. It finds a matching route by checking the **Destination** column
-4. It forwards the packet to the resource specified in the **Target** column
+  EC2 --> RT
+  RT -->|"0.0.0.0/0 → IGW"| IGW
+  RT -->|"10.0.0.0/16 → local"| Local
+  RT -->|"192.168.0.0/16 → VGW"| VGW
+`} />
+
+## Key Concepts
 
 ### Longest Prefix Match
 
-If a packet matches more than one route, the router selects the route with the **longest prefix** (most specific). For example, if routes exist for `/8` and `/16`, the `/16` wins because it is more specific.
+When a packet matches more than one route, the router selects the **most specific route** (longest prefix). This is the fundamental principle of IP routing.
+
+**Concrete example:**
+
+| Destination | Target | Matches |
+|---|---|---|
+| `10.0.0.0/16` | local | All packets to 10.0.x.x |
+| `10.0.1.0/24` | tgw-xxxx | Packets to 10.0.1.x |
+
+If a packet goes to `10.0.1.5`:
+- Matches `10.0.0.0/16` (/16 prefix)
+- Matches `10.0.1.0/24` (/24 prefix)
+- **`10.0.1.0/24` wins** because /24 is more specific than /16
+
+If a packet goes to `10.0.2.5`:
+- Only matches `10.0.0.0/16`
+- The `local` route is used
 
 ### Local Route
 
-All route tables have **at least one default route**: the **local route**.
+Every route table has **at least one local route** that cannot be deleted or modified:
 
 | Destination | Target |
 |---|---|
-| `10.16.0.0/16` (VPC CIDR) | `local` |
+| `10.0.0.0/16` (VPC CIDR) | `local` |
 
-This route allows any resource within the VPC to communicate with any other resource in the same VPC. If the VPC has IPv6 enabled, there will also be a local route for the IPv6 CIDR block.
+This route allows any resource inside the VPC to communicate with any other resource in the same VPC without going to the internet. If the VPC has IPv6 enabled, there will also be a local route for the IPv6 CIDR block.
 
-The local route **cannot be deleted or modified**.
+**The local route cannot be deleted.** It is the foundation of intra-VPC communication.
 
-## Subnet and Route Table Association
+### Route Tables: Main vs Custom
 
-- Each subnet is associated with **exactly one** route table
-- Multiple subnets can share the **same** route table
-- When you create a VPC, a **default route table** is automatically created
-- New subnets are automatically associated with the default route table until you change them
+| Type | Description |
+|---|---|
+| **Main** | Created automatically with the VPC. New subnets are associated with it by default |
+| **Custom** | Created manually. You must explicitly associate it with the subnets that will use it |
 
-### Why Have Multiple Route Tables?
+Each subnet is associated with **exactly one** route table. Multiple subnets can share the **same** route table.
 
-A very common pattern is to have:
+**Best practice:** do not add internet routes to the main route table. Create custom route tables for public and private subnets.
 
-- A **public route table** — with a default route (`0.0.0.0/0`) pointing to the Internet Gateway
-- A **private route table** — with a default route pointing to a NAT Gateway (or no default route)
+### Route Types
 
-This allows public subnets to have direct internet access while private subnets can only reach the internet through the NAT Gateway.
+| Type | Description | Example |
+|---|---|---|
+| **Static** | Added manually by the administrator | `0.0.0.0/0 → igw-xxxx` |
+| **Propagated** | Learned dynamically via BGP (VPN/Direct Connect) | `192.168.1.0/24` (on-premises network) |
+| **Local** | Always present, not modifiable | `10.0.0.0/16 → local` |
+
+Propagated routes are enabled by activating **route propagation** on the route table when a Virtual Private Gateway (VGW) is attached.
+
+### Multiple Route Tables: Multi-Tier Example
+
+A common pattern for 3-tier architectures:
+
+| Route Table | Associated Subnets | Key Routes |
+|---|---|---|
+| `rtb-public` | Public subnets (web tier) | `0.0.0.0/0 → IGW`, `10.0.0.0/16 → local` |
+| `rtb-private-app` | Private subnets (app tier) | `0.0.0.0/0 → NAT GW`, `10.0.0.0/16 → local` |
+| `rtb-private-db` | Private subnets (db tier) | Only `10.0.0.0/16 → local` (no internet access) |
+
+Database subnets have only the local route — they cannot access the internet or be accessed from it.
+
+## Configuration
+
+To add routes to a route table:
+
+1. Navigate to **VPC → Route Tables**
+2. Select the route table you want to modify
+3. Click the **Routes → Edit routes** tab
+4. Click **Add route**
+5. Define the **Destination** (e.g., `0.0.0.0/0`)
+6. Select the **Target** (IGW, NAT Gateway, VGW, TGW, VPC Peering, etc.)
+7. Click **Save changes**
+
+To associate a subnet:
+1. Select the route table
+2. Go to **Subnet associations → Edit subnet associations**
+3. Check the subnets that should use this route table
+4. Save changes
 
 <Callout type="warn">
-**For the SAA-C03 exam:** Remember that the local route always exists and cannot be deleted. When routes conflict, the longest prefix wins. Each subnet belongs to exactly one route table, but a route table can have multiple subnets.
+**SAA-C03 Exam Tips:**
+- **Longest prefix match**: when routes overlap, the most specific (longest) prefix always wins. A `10.0.1.0/24` route always takes priority over `10.0.0.0/16` for packets to `10.0.1.x`.
+- **The local route cannot be deleted** or modified. It always allows communication within the VPC.
+- **One subnet = one route table**. One route table can have multiple subnets.
+- New subnets are automatically associated with the **main route table** unless you associate them with another.
+- For VPN/Direct Connect, enable **route propagation** so BGP routes are added automatically.
+- Database subnet route tables **should not have a route to the internet** for security.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Route Tables:**
+
+| Property | Value |
+|---|---|
+| Local route | Always present, cannot be deleted |
+| Local route CIDR | VPC CIDR (e.g., 10.0.0.0/16) |
+| Subnet ↔ Route Table | 1 subnet = 1 route table |
+| Route Table ↔ Subnets | 1 route table = N subnets |
+| New subnet → associated with | Main route table (by default) |
+| Route types | Static, propagated (BGP), local |
+| Route selection | Longest prefix match |
+| Propagated routes | Requires VGW + route propagation enabled |
+| Max route tables per VPC | 200 (adjustable) |
+| Max routes per route table | 1,000 (adjustable) |
 </Callout>

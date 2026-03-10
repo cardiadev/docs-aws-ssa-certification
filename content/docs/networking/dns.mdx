@@ -1,54 +1,158 @@
 ---
 title: "DNS (VPC)"
-description: "Resolución de nombres de dominio dentro de una VPC — servidores DNS de AWS y opciones de configuración."
+description: "Resolución de nombres de dominio dentro de una VPC — Route 53 Resolver, Private Hosted Zones, DHCP Option Sets y configuración DNS."
 ---
 
 ## Resumen
 
-Cuando despliegas recursos como instancias EC2 en una subnet, AWS les asigna una **IP privada** y automáticamente les genera un **nombre de dominio DNS** basado en esa IP. Este mecanismo permite la comunicación dentro de la VPC usando nombres en lugar de direcciones IP.
+Cuando despliegas recursos como instancias EC2 en una subnet, AWS les asigna una **IP privada** y automáticamente genera un **nombre de dominio DNS** basado en esa IP. Este mecanismo permite la comunicación dentro de la VPC usando nombres en lugar de IPs.
 
-## Nombres DNS Privados
+Además del DNS básico de la VPC, **Route 53 Resolver** proporciona resolución DNS avanzada que puede conectar el DNS de la VPC con redes on-premises mediante endpoints de entrada y salida.
 
-Por defecto, todas las IPs privadas asignadas a una instancia EC2 reciben un nombre de dominio con la IP embebida. Por ejemplo, una instancia con IP `10.0.100.10` recibirá un nombre como:
+## Arquitectura
 
-```
-ip-10-0-100-10.ec2.internal
-```
+<Mermaid chart={`
+sequenceDiagram
+  participant EC2 as EC2 Instance
+  participant DNS as VPC DNS (169.254.169.253)
+  participant R53 as Route 53 Resolver
+  participant PHZ as Private Hosted Zone
+  participant Pub as DNS Público (internet)
 
-Esto aplica tanto para subnets públicas como privadas. Los recursos pueden comunicarse usando la IP directamente o mediante el nombre DNS.
+  EC2->>DNS: ¿Cuál es la IP de app.internal.com?
+  DNS->>R53: Consulta DNS
+  R53->>PHZ: ¿Existe app.internal.com en alguna PHZ asociada?
+  PHZ-->>R53: Sí → 10.0.1.50
+  R53-->>DNS: 10.0.1.50
+  DNS-->>EC2: 10.0.1.50
 
-## Servidores DNS de AWS
+  EC2->>DNS: ¿Cuál es la IP de example.com?
+  DNS->>R53: Consulta DNS
+  R53->>Pub: Resolución pública
+  Pub-->>R53: 93.184.216.34
+  R53-->>DNS: 93.184.216.34
+  DNS-->>EC2: 93.184.216.34
+`} />
 
-Para resolver estos nombres de dominio, AWS proporciona servidores DNS accesibles desde dos direcciones:
+## Conceptos Clave
 
-| Dirección | Descripción |
-|---|---|
-| `169.254.169.253` | Accesible desde cualquier recurso en la VPC |
-| Segunda IP del CIDR de la VPC | Ej: si el CIDR es `10.10.0.0/16`, el DNS está en `10.10.0.2` |
-
-## Opciones de Configuración DNS
+### Configuración DNS de VPC
 
 Al crear una VPC personalizada, hay **dos opciones clave** que controlan el comportamiento DNS:
 
-### enableDnsSupport
+| Opción | Default VPC | Custom VPC | Descripción |
+|---|---|---|---|
+| **enableDnsSupport** | `true` | `true` | Habilita la resolución DNS via servidores Amazon |
+| **enableDnsHostnames** | `true` | `false` | Asigna nombres DNS públicos a instancias con IP pública |
 
-Determina si la VPC soporta **resolución DNS** a través de los servidores DNS de Amazon.
+- **enableDnsSupport = false**: no hay resolución DNS en la VPC — los nombres de dominio no funcionan
+- **enableDnsHostnames = true + enableDnsSupport = true**: las instancias con IP pública reciben un nombre DNS público como `ec2-54-12-34-56.compute-1.amazonaws.com`
 
-- Si está **habilitado** (por defecto: `true`): las consultas a los servidores DNS de Amazon funcionan correctamente
-- Si está **deshabilitado**: no hay resolución DNS — no puedes usar nombres de dominio para comunicarte
+### DNS de VPC Base
 
-### enableDnsHostnames
+AWS proporciona un resolver DNS accesible desde dos direcciones:
 
-Determina si la VPC asigna **nombres DNS públicos** a instancias con IP pública.
+| Dirección | Ejemplo | Descripción |
+|---|---|---|
+| `169.254.169.253` | Siempre igual | Link-local, accesible desde cualquier recurso en la VPC |
+| Segunda IP del CIDR de la VPC | `10.0.0.2` para VPC `10.0.0.0/16` | Alternativa basada en el CIDR |
 
-- Por defecto: `false` en VPCs personalizadas, `true` en la VPC por defecto
-- Si está **habilitado**: las instancias con IP pública también reciben un nombre DNS público
-- Si está **deshabilitado**: solo las IPs privadas obtienen nombres DNS
+### Nombres DNS Privados
 
-<Callout type="info">
-Para que los nombres DNS públicos funcionen, **ambas opciones** deben estar habilitadas: `enableDnsSupport` y `enableDnsHostnames`.
-</Callout>
+Cada IP privada recibe automáticamente un hostname DNS:
+
+| Región | Formato del hostname |
+|---|---|
+| us-east-1 | `ip-10-0-1-5.ec2.internal` |
+| Otras regiones | `ip-10-0-1-5.us-west-2.compute.internal` |
+
+### Route 53 Resolver
+
+**Route 53 Resolver** es el servicio que realiza la resolución DNS para la VPC. Puede resolver:
+- Nombres de dominio públicos (internet)
+- Nombres en Private Hosted Zones asociadas a la VPC
+- Nombres DNS internos de la VPC (`ip-x-x-x-x.ec2.internal`)
+
+#### Resolver Endpoints
+
+Para conectar DNS entre AWS y redes on-premises:
+
+| Tipo de Endpoint | Dirección del Tráfico | Caso de Uso |
+|---|---|---|
+| **Inbound Endpoint** | On-premises → AWS | Servidores on-premises resuelven nombres de dominio en AWS |
+| **Outbound Endpoint** | AWS → On-premises | Instancias EC2 resuelven nombres de dominio en servidores DNS on-premises |
+
+**Outbound Endpoint + Resolver Rules**: configuras reglas que redirigen consultas DNS para dominios específicos (ej: `corp.internal.com`) al servidor DNS on-premises.
+
+### Private Hosted Zones
+
+Una **Private Hosted Zone (PHZ)** es una zona DNS que solo es accesible dentro de las VPCs a las que está asociada:
+
+- Asocia una PHZ a una o más VPCs
+- Las instancias en esas VPCs pueden resolver los nombres en la PHZ
+- Soporta **split-horizon DNS**: el mismo nombre de dominio resuelve a IPs diferentes dependiendo desde dónde se consulta (privada dentro de VPC, pública desde internet)
+
+**Ejemplo de split-horizon**:
+- `api.example.com` desde internet → `54.12.34.56` (IP pública del ALB)
+- `api.example.com` desde dentro de la VPC → `10.0.1.50` (IP privada del ALB)
+
+### DHCP Option Sets
+
+Los **DHCP Option Sets** controlan la información DHCP que reciben las instancias al conectarse a la red:
+
+| Opción | Descripción | Ejemplo |
+|---|---|---|
+| **domain-name** | Dominio de búsqueda DNS | `corp.internal` |
+| **domain-name-servers** | Servidores DNS a usar | `10.0.0.2` o `AmazonProvidedDNS` |
+| **ntp-servers** | Servidores NTP | `169.254.169.123` |
+
+Cada VPC tiene un DHCP Option Set asociado. Solo puedes **asociar** un nuevo Option Set (no modificar el existente).
+
+## Configuración
+
+Para configurar DNS en una VPC personalizada:
+
+1. **Habilitar DNS en la VPC**:
+   - Navega a **VPC → Your VPCs → selecciona la VPC**
+   - Haz clic en **Actions → Edit VPC settings**
+   - Activa **Enable DNS resolution** (`enableDnsSupport`)
+   - Activa **Enable DNS hostnames** (`enableDnsHostnames`) si necesitas hostnames públicos
+
+2. **Crear una Private Hosted Zone**:
+   - Navega a **Route 53 → Hosted zones → Create hosted zone**
+   - Ingresa el nombre del dominio (ej: `internal.corp.com`)
+   - Tipo: **Private hosted zone**
+   - Asocia la VPC donde quieres que sea accesible
+
+3. **Configurar Resolver Endpoints** (para híbrido):
+   - Navega a **Route 53 → Resolver → Endpoints → Create endpoint**
+   - Selecciona **Inbound** o **Outbound**
+   - Selecciona la VPC y las subnets donde se desplegará el endpoint
+   - Configura las reglas de reenvío (Resolver Rules) para dominios específicos
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Recuerda las dos opciones — `enableDnsSupport` habilita la resolución DNS y `enableDnsHostnames` habilita nombres DNS para IPs públicas. El servidor DNS está en la segunda IP del CIDR de la VPC o en `169.254.169.253`.
+**Consejos para el examen SAA-C03:**
+- Para que los **hostnames DNS públicos** funcionen en una VPC personalizada, **ambas opciones** deben estar habilitadas: `enableDnsSupport` y `enableDnsHostnames`.
+- El servidor DNS de la VPC siempre está en la **segunda IP del CIDR** de la VPC (ej: `10.0.0.2`) o en `169.254.169.253`.
+- Para resolver nombres on-premises desde AWS, necesitas un **Outbound Resolver Endpoint** + Resolver Rules.
+- Para que servidores on-premises resuelvan nombres en AWS, necesitas un **Inbound Resolver Endpoint**.
+- Las **Private Hosted Zones** deben estar asociadas a la VPC para ser accesibles — no basta con crearlas en Route 53.
+- El **split-horizon DNS** usa una Private Hosted Zone para el mismo dominio con diferentes valores internos vs. externos.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — DNS en VPC:**
+
+| Propiedad | Valor |
+|---|---|
+| Servidor DNS VPC | 169.254.169.253 o segunda IP del CIDR |
+| enableDnsSupport default | true (en todas las VPCs) |
+| enableDnsHostnames default | true (default VPC), false (custom VPC) |
+| Hostname privado formato | ip-10-0-1-5.ec2.internal |
+| Private Hosted Zone | Asociada a VPC(s), solo accesible internamente |
+| Split-horizon DNS | PHZ + Public Hosted Zone con mismo nombre |
+| Inbound Endpoint | On-premises → AWS DNS |
+| Outbound Endpoint | AWS → On-premises DNS |
+| DHCP Option Set | Configura DNS/NTP/dominio para instancias |
+| Custom DNS servers | Configurados en DHCP Option Set |
 </Callout>

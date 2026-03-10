@@ -1,6 +1,6 @@
 ---
 title: "Amazon VPC"
-description: "Virtual Private Cloud — isolated virtual networks in AWS, CIDR blocks, default vs custom VPC."
+description: "Virtual Private Cloud — isolated virtual networks in AWS, CIDR blocks, tenancy, IPv6, and default vs custom VPC."
 ---
 
 ## Overview
@@ -13,38 +13,114 @@ With a VPC you get full control over:
 - **Firewalls** — Security Groups and NACLs to control inbound and outbound traffic
 - **Gateways** — customize traffic entering and leaving your VPC
 - **IP addressing** — define the IP range with CIDR blocks
+- **Subnets** — segment the VPC into public and private subnets per AZ
+
+VPCs are **specific to a single region** and cannot span multiple regions. Within a region, a VPC spans all Availability Zones (AZs).
+
+## Architecture
+
+<Mermaid chart={`
+graph TD
+  Region["AWS Region (us-east-1)"]
+  VPC["VPC (10.0.0.0/16)"]
+  AZ1["AZ us-east-1a"]
+  AZ2["AZ us-east-1b"]
+  PubA["Public Subnet (10.0.1.0/24)"]
+  PrivA["Private Subnet (10.0.2.0/24)"]
+  PubB["Public Subnet (10.0.3.0/24)"]
+  PrivB["Private Subnet (10.0.4.0/24)"]
+  IGW["Internet Gateway"]
+  NATGW["NAT Gateway"]
+  Internet["Internet"]
+
+  Region --> VPC
+  VPC --> AZ1
+  VPC --> AZ2
+  AZ1 --> PubA
+  AZ1 --> PrivA
+  AZ2 --> PubB
+  AZ2 --> PrivB
+  VPC --> IGW
+  IGW --> Internet
+  PubA --> NATGW
+  NATGW --> IGW
+`} />
 
 ## Key Concepts
 
-### Region and Isolation
-
-VPCs are **specific to a single region**. When you create a VPC you must specify which region it will exist in. A VPC cannot span multiple regions.
-
-By default, resources deployed in a VPC **cannot communicate** with resources in another VPC. If you need inter-VPC communication or internet access, you must explicitly enable it.
-
 ### CIDR Blocks
 
-Every VPC has an IP address range assigned through a **CIDR block** (Classless Inter-Domain Routing):
+Every VPC has an IP address range assigned through a **CIDR block** (Classless Inter-Domain Routing). The block size determines how many IPs are available:
 
-- Defines the IPs available for resources inside the VPC
-- Can range from **/16** (65,536 addresses) to **/28** (16 addresses)
-- You can optionally add a **secondary IPv4 CIDR block**
-- You can enable **IPv6 CIDR blocks** (/56) — up to 5 blocks (adjustable limit)
+| Prefix | Total IPs | Usable IPs | Example |
+|---|---|---|---|
+| /16 | 65,536 | 65,531 | 10.0.0.0/16 |
+| /17 | 32,768 | 32,763 | 10.0.0.0/17 |
+| /18 | 16,384 | 16,379 | 10.0.0.0/18 |
+| /19 | 8,192 | 8,187 | 10.0.0.0/19 |
+| /20 | 4,096 | 4,091 | 10.0.0.0/20 |
+| /21 | 2,048 | 2,043 | 10.0.0.0/21 |
+| /22 | 1,024 | 1,019 | 10.0.0.0/22 |
+| /23 | 512 | 507 | 10.0.0.0/23 |
+| /24 | 256 | 251 | 10.0.1.0/24 |
+| /25 | 128 | 123 | 10.0.1.0/25 |
+| /26 | 64 | 59 | 10.0.1.0/26 |
+| /27 | 32 | 27 | 10.0.1.0/27 |
+| /28 | 16 | 11 | 10.0.1.0/28 |
 
-**Example:** a VPC with CIDR `10.0.0.0/16` makes addresses from `10.0.0.0` to `10.0.255.255` available.
+> Usable IPs = Total IPs − 5 (AWS reserves 5 IPs in each subnet: network, router, DNS, reserved, and broadcast).
+
+You can add **secondary CIDR blocks** to an existing VPC to expand the address space without recreating it.
+
+### Tenancy
+
+When creating a VPC you must select the **tenancy** type:
+
+| Type | Description | Cost |
+|---|---|---|
+| **Default** | Instances deploy on shared (multi-tenant) hardware | Standard |
+| **Dedicated** | Instances deploy on hardware dedicated exclusively to your account | Higher cost |
+
+The VPC tenancy is the default for instances created within it, but you can override it per instance (only default → dedicated; reversing requires recreating the instance).
+
+### IPv6
+
+- AWS can assign an IPv6 **/56** block to your VPC (from the Amazon pool)
+- You can assign IPv6 **/64** blocks to subnets (256 /64 blocks per VPC)
+- Up to **5 IPv6 CIDR blocks** per VPC (adjustable limit)
+- Subnets can be configured as **dual-stack** (IPv4 + IPv6) or **IPv6-only**
+- IPv6 addresses are globally unique — no NAT for IPv6 (use Egress-Only IGW instead)
+- You can bring your own IPv6 addresses (**BYOIP**)
+
+### VPC Limits
+
+| Resource | Default Limit | Adjustable |
+|---|---|---|
+| VPCs per region | 5 | Yes |
+| Subnets per VPC | 200 | Yes |
+| IPv4 CIDR blocks per VPC | 5 | Up to 50 |
+| IPv6 CIDR blocks per VPC | 5 | Yes |
+| Internet Gateways per region | 5 | Yes |
+| Route tables per VPC | 200 | Yes |
+| Security Groups per VPC | 2,500 | Yes |
+| NACLs per VPC | 200 | Yes |
 
 ## Default VPC vs Custom VPC
 
 | Feature | Default VPC | Custom VPC |
 |---|---|---|
 | **Creation** | Automatic by AWS in every region | Created manually by you |
-| **CIDR block** | Always `172.31.0.0/16` | You define it |
+| **CIDR block** | Always `172.31.0.0/16` | You define it (/16 to /28) |
 | **Subnets** | One /20 subnet per AZ | You configure them |
-| **Internet access** | Enabled by default | Must be configured |
+| **Internet access** | Enabled by default | Must be configured explicitly |
 | **Internet Gateway** | Created and attached automatically | Must create and attach |
 | **Default route** | `0.0.0.0/0` → Internet Gateway | Must create it |
+| **Auto-assign public IP** | Enabled on all subnets | Disabled by default |
 | **Security Group** | Allows outbound traffic | You define the rules |
 | **NACL** | Allows all traffic (inbound & outbound) | You define the rules |
+| **DNS hostnames** | Enabled (`true`) | Disabled by default |
+| **Deletable** | Yes (not recommended) | Yes |
+| **Purpose** | Rapid prototyping, testing | Production, secure architectures |
 
 ### Default VPC Configuration
 
@@ -54,20 +130,55 @@ When you create an AWS account you get **one default VPC in every region** with 
 2. One **default subnet** in each Availability Zone (AZ) with a /20 CIDR
 3. An **Internet Gateway** attached with a `0.0.0.0/0` route
 4. A **default Security Group** (allows outbound traffic)
-5. A **default NACL** (allows all traffic)
+5. A **default NACL** (allows all inbound and outbound traffic)
 6. Subnets auto-assign a **public IP** to instances
+7. `enableDnsHostnames` = `true`, `enableDnsSupport` = `true`
 
-### Creating a Custom VPC
+## Configuration: Creating a Custom VPC
 
-To create a custom VPC:
+To create a custom VPC from the AWS console:
 
-1. Select the **region** where you will deploy the VPC
-2. Define the **IPv4 CIDR block** (e.g. `10.0.0.0/16`)
-3. Optionally enable an **IPv6 CIDR block** (Amazon can provide one)
-4. Choose the **tenancy** type (default or dedicated)
+1. Navigate to **VPC → Your VPCs → Create VPC**
+2. Choose **VPC only** (or "VPC and more" for the full wizard)
+3. Assign a **descriptive name** (e.g., `prod-vpc`)
+4. Define the **IPv4 CIDR block** (e.g., `10.0.0.0/16`) — avoid overlap with other VPCs or on-premises networks
+5. Select an **IPv6 CIDR block** if needed (Amazon-provided or BYOIP)
+6. Select the **tenancy** type (Default for most cases)
+7. Click **Create VPC**
 
-AWS will automatically create a **route table** and a **default NACL** for your new VPC, but it will **not** create subnets, Internet Gateways, or routes to the internet — you must configure all of that yourself.
+AWS automatically creates:
+- A **main route table** with no routes to the internet
+- A **default NACL** that allows all traffic
+- A **default Security Group**
+
+What you must create manually:
+- **Subnets** (public and private) in the AZs you need
+- **Internet Gateway** and attach it to the VPC
+- **NAT Gateways** for private subnets
+- **Custom route tables** for public and private subnets
 
 <Callout type="warn">
-**For the SAA-C03 exam:** Remember that VPCs are region-specific and cannot span multiple regions. The default VPC CIDR is always `172.31.0.0/16`. If a question mentions inter-VPC communication, remember that VPCs are completely isolated by default.
+**SAA-C03 Exam Tips:**
+- VPCs are **regional**: they cannot span multiple regions. Resources within a VPC can be in multiple AZs.
+- The **default VPC** CIDR is always `172.31.0.0/16`. If a question mentions this, you know it's the default VPC.
+- Two VPCs are **completely isolated** by default. To connect them you need VPC Peering, Transit Gateway, or another mechanism.
+- The VPC CIDR range goes from **/16** (65,536 IPs) to **/28** (16 IPs).
+- If you delete the default VPC and need to restore it, you can do so from the console or CLI — it is not restored automatically.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Amazon VPC:**
+
+| Property | Value |
+|---|---|
+| Allowed CIDR range | /16 to /28 |
+| Default VPC CIDR | 172.31.0.0/16 |
+| Max VPCs per region | 5 (adjustable) |
+| Max subnets per VPC | 200 (adjustable) |
+| Reserved IPs per subnet | 5 (network, router, DNS, reserved, broadcast) |
+| IPv6 CIDR blocks | /56 per VPC, /64 per subnet |
+| Scope | Regional (spans all AZs) |
+| Tenancy | Default (shared) or Dedicated (exclusive hardware) |
+| Secondary CIDR block | Up to 5 additional IPv4 blocks |
+| DNS by default (custom VPC) | enableDnsHostnames = false |
 </Callout>

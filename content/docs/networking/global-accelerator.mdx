@@ -1,46 +1,202 @@
 ---
-title: "Global Accelerator"
-description: "AWS Global Accelerator — mejora el rendimiento global enrutando tráfico a través del backbone de AWS con IPs Anycast."
+title: AWS Global Accelerator
+description: "AWS Global Accelerator — aceleración de red con 2 IPs Anycast estáticas y backbone de AWS para el examen SAA-C03."
 ---
+
 
 ## Resumen
 
-**AWS Global Accelerator** mejora el rendimiento de tus aplicaciones enrutando el tráfico de los usuarios a través del **backbone de AWS** en lugar del internet público. Los usuarios se conectan a la edge location más cercana y desde ahí el tráfico viaja por la red privada de AWS hasta tu aplicación.
+**AWS Global Accelerator** es un servicio de aceleración de red que mejora la disponibilidad y el rendimiento de las aplicaciones utilizando la **red global backbone de AWS**. Proporciona **2 direcciones IP Anycast estáticas** que sirven como punto de entrada fijo para los usuarios globales.
 
-## El Problema que Resuelve
+A diferencia de CloudFront, Global Accelerator **no cachea contenido**. En cambio, enruta el tráfico de red (TCP/UDP) desde el usuario hasta el endpoint más cercano usando la red privada de AWS en lugar del internet público.
 
-Cuando un usuario envía una solicitud a tu aplicación, el tráfico viaja por internet a través de múltiples proveedores (ISPs). Este camino es:
+## Arquitectura
 
-- **Impredecible** — no siempre toma la ruta más eficiente
-- **Inestable** — sujeto a congestión y variabilidad
-- **Lento** — mayor latencia comparado con una red dedicada
+<Mermaid chart={`
+flowchart LR
+  User["Usuario en Tokio"] --> AnycastIP["2 IPs Anycast Estáticas"]
+  AnycastIP --> EdgeLocation["Edge Location más cercana"]
+  EdgeLocation --> AWSBackbone["AWS Global Backbone"]
+  AWSBackbone --> ALB["ALB en us-east-1"]
+`} />
 
-## Cómo Funciona
+## Conceptos Clave
 
-1. El usuario envía una solicitud
-2. Se conecta a la **edge location más cercana** de Global Accelerator
-3. Desde la edge location, el tráfico viaja por el **backbone de AWS** (red privada)
-4. Llega a tu aplicación en la región de destino
+### 2 IPs Anycast Estáticas
+
+- Global Accelerator siempre proporciona **exactamente 2 IPs estáticas**.
+- Son **Anycast**: múltiples ubicaciones anuncian la misma IP; el tráfico se enruta al nodo más cercano automáticamente.
+- Estas IPs **no cambian** aunque cambies los endpoints subyacentes.
+- Ideal cuando los usuarios necesitan IPs fijas para whitelisting en firewalls corporativos.
+
+### Tipos de Endpoints
+
+| Tipo de Endpoint | Descripción |
+|---|---|
+| **Application Load Balancer** | ALB público o privado |
+| **Network Load Balancer** | NLB público o privado |
+| **EC2 Instance** | Instancia con IP pública |
+| **Elastic IP** | EIP asociada a un recurso |
+
+Los endpoints pueden estar en **múltiples regiones de AWS**, y Global Accelerator enruta al endpoint más saludable y de menor latencia.
+
+### Traffic Dials (Marcadores de Tráfico)
+
+- Cada **Endpoint Group** tiene un **traffic dial** de 0% a 100%.
+- Permite controlar qué porcentaje del tráfico se envía a un grupo de endpoints.
+- Útil para **blue/green deployments** y migraciones graduales entre regiones.
 
 ```
-Usuario → Edge Location (más cercana) → AWS Backbone → Aplicación (región)
+Endpoint Group us-east-1: traffic dial = 80%
+Endpoint Group eu-west-1: traffic dial = 20%
 ```
 
-El backbone de AWS ofrece conexiones más rápidas, seguras y eficientes que el internet público.
+### Endpoint Weights (Pesos de Endpoint)
 
-## CloudFront vs Global Accelerator
+- Dentro de un Endpoint Group, cada endpoint puede tener un **peso** de 0 a 255.
+- El tráfico se distribuye proporcionalmente según los pesos.
+- Útil para distribución ponderada dentro de la misma región.
 
-| Característica | CloudFront | Global Accelerator |
+### Aceleración vs CloudFront
+
+| Característica | Global Accelerator | CloudFront |
 |---|---|---|
-| **Propósito** | **Cachear contenido** en edge locations | **Enrutar tráfico** al backbone de AWS |
-| **Edge locations** | Almacenan objetos en caché | Punto de entrada a la red de AWS |
-| **Tipo de contenido** | Estático (imágenes, videos, HTML) | Cualquier tráfico de aplicación |
-| **Mejora** | Latencia de descarga | Latencia de conexión a la app |
+| **Tipo** | Aceleración de red | CDN / caché |
+| **Capa** | Capa 3/4 (TCP/UDP) | Capa 7 (HTTP/HTTPS) |
+| **Caché** | No | Sí |
+| **IPs estáticas** | Sí (2 IPs Anycast) | No (dominio dinámico) |
+| **Protocolos** | TCP y UDP | HTTP, HTTPS, WebSocket |
+| **Latencia mejora** | Conexión de red | Entrega de contenido |
 
-<Callout type="info">
-**No confundir:** CloudFront cachea contenido en el borde; Global Accelerator enruta usuarios al backbone de AWS lo más rápido posible. Ambos usan edge locations pero con propósitos diferentes.
-</Callout>
+### Accelerated VPN
+
+- Global Accelerator puede usarse para **acelerar conexiones VPN Site-to-Site** de AWS.
+- El tráfico VPN usa el backbone de AWS en lugar del internet público desde el edge location más cercano.
+
+### Health Checks
+
+- Global Accelerator realiza **health checks** continuos de los endpoints.
+- Si un endpoint falla, el tráfico se redirige automáticamente al siguiente endpoint más saludable.
+- El **failover ocurre en menos de 30 segundos**.
+
+## Comparativa: Global Accelerator vs CloudFront
+
+| Característica | Global Accelerator | CloudFront |
+|---|---|---|
+| **Capa OSI** | Capa 3/4 | Capa 7 |
+| **Caché de contenido** | No | Sí |
+| **Protocolos** | TCP y UDP | HTTP/HTTPS/WebSocket |
+| **IPs estáticas** | 2 IPs Anycast | No (CNAME dinámico) |
+| **Tiempo de failover** | < 30 segundos | Variable |
+| **Casos de uso** | Gaming, IoT, apps TCP/UDP | Sitios web, APIs, streaming |
+| **Costo base** | Por hora + transferencia de datos | Por solicitud + transferencia |
+| **Integración WAF** | No | Sí |
+| **DDoS Protection** | Shield Standard | Shield Standard |
+
+## Casos de Uso
+
+| Caso de Uso | Por qué Global Accelerator |
+|---|---|
+| **Gaming en tiempo real (UDP)** | Soporte nativo de UDP, baja latencia de red |
+| **IoT con protocolos TCP/UDP** | No HTTP, necesita aceleración de red |
+| **IP estática requerida** | Whitelisting en firewalls corporativos |
+| **Failover multi-región** | Failover automático < 30 s |
+| **Migración azul/verde** | Traffic dials para desvío gradual |
+| **VPN acelerada** | Backbone de AWS para Site-to-Site VPN |
+| **Apps no-HTTP** | Cualquier protocolo TCP/UDP |
+
+## Cómo Funciona Anycast
+
+El enrutamiento **Anycast** es la tecnología central de Global Accelerator:
+
+1. Las 2 IPs estáticas son **anunciadas desde múltiples edge locations** simultáneamente a través de BGP.
+2. Cuando un usuario realiza una solicitud, los protocolos de enrutamiento de internet la dirigen a la **edge location más cercana** que anuncia esa IP.
+3. Desde la edge location, el tráfico ingresa a la **red privada de AWS (backbone)**.
+4. AWS enruta internamente al endpoint más saludable y de menor latencia.
+
+```
+Usuario (Tokio) ─→ Edge location Tokio (backbone AWS) ─→ ALB us-east-1
+Usuario (Londres) ─→ Edge location Londres (backbone AWS) ─→ ALB us-east-1
+```
+
+Ambos usuarios usan las **mismas 2 IPs** pero su tráfico ingresa al backbone desde el punto más cercano.
+
+## Estructura de un Accelerator
+
+Un Global Accelerator tiene la siguiente jerarquía:
+
+```
+Accelerator
+├── 2 IPs Anycast Estáticas
+└── Listener (TCP/UDP, puerto(s))
+    ├── Endpoint Group — Región us-east-1 (traffic dial: 80%)
+    │   ├── ALB us-east-1 (weight: 128)
+    │   └── ALB us-east-1 backup (weight: 128)
+    └── Endpoint Group — Región eu-west-1 (traffic dial: 20%)
+        └── NLB eu-west-1 (weight: 255)
+```
+
+### Listeners
+
+- Definen el **protocolo** (TCP o UDP) y el rango de **puertos** que Global Accelerator acepta.
+- Soportan **múltiples puertos** en un solo listener (ej: 80, 443, 8080).
+- El tráfico del listener se distribuye entre los Endpoint Groups según los traffic dials.
+
+### Endpoint Groups
+
+- Cada Endpoint Group está asociado a una **región de AWS**.
+- Contiene uno o más endpoints dentro de esa región.
+- El **traffic dial** controla qué porcentaje del tráfico del listener se envía a ese grupo (0-100%).
+- Útil para **canary deployments**: enviar el 5% del tráfico a una nueva región antes del rollout completo.
+
+## Costos
+
+| Componente | Costo |
+|---|---|
+| **Tarifa fija por accelerator** | Por hora mientras el accelerator está activo |
+| **Transferencia de datos premium** | Por GB transferido a través del backbone (tarifa premium adicional al costo de transferencia estándar) |
+| **Datos desde internet al accelerator** | Sin cargo adicional |
+
+> Global Accelerator tiene un costo de **tarifa fija por hora** más una tarifa de transferencia de datos "premium" que refleja el uso del backbone de AWS. Es más costoso que enrutar tráfico directamente, pero proporciona mejor rendimiento y disponibilidad.
+
+## Configuración
+
+Pasos para crear un Global Accelerator:
+
+1. En la consola de AWS, ir a **Global Accelerator → Create accelerator**.
+2. Asignar un nombre al accelerator; se generan automáticamente 2 IPs Anycast estáticas.
+3. Configurar **Listeners** (protocolo: TCP o UDP, puertos).
+4. Agregar **Endpoint Groups** por región, configurar el traffic dial.
+5. Agregar **Endpoints** (ALB, NLB, EC2, EIP) con pesos opcionales.
+6. Configurar health checks por endpoint group.
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Global Accelerator usa edge locations para enrutar tráfico al backbone de AWS, no para cachear contenido. Mejora el rendimiento global al evitar el internet público. Diferéncialo de CloudFront: CloudFront cachea, Global Accelerator enruta.
+**Exam Tips — SAA-C03:**
+- **Siempre 2 IPs Anycast estáticas** — nunca más, nunca menos.
+- **No es un CDN y no cachea contenido** — diferencia clave con CloudFront.
+- **Funciona para TCP Y UDP** — CloudFront solo HTTP/HTTPS/WebSocket.
+- **Usar cuando necesitas IPs estáticas** para whitelisting o protocolos no-HTTP.
+- **Failover en menos de 30 segundos** — health checks automáticos.
+- **Traffic dials** son a nivel de Endpoint Group (por región); **weights** son a nivel de endpoint individual.
+- **No confundir con CloudFront**: Global Accelerator no cachea, no es CDN.
+- **Accelerated VPN** = usar Global Accelerator para acelerar Site-to-Site VPN.
+- Los endpoints pueden ser ALB, NLB, EC2 o Elastic IP.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — AWS Global Accelerator:**
+
+| Propiedad | Valor |
+|---|---|
+| **IPs estáticas** | 2 IPs Anycast siempre |
+| **Protocolos** | TCP y UDP |
+| **Caché** | No |
+| **Capa OSI** | Capa 3/4 |
+| **Endpoints** | ALB, NLB, EC2, Elastic IP |
+| **Tiempo de failover** | < 30 segundos |
+| **Traffic dials** | 0-100% por Endpoint Group |
+| **Endpoint weights** | 0-255 por endpoint |
+| **DDoS protection** | Shield Standard incluido |
+| **Aceleración VPN** | Sí (Site-to-Site VPN) |
+| **Integración WAF** | No |
 </Callout>

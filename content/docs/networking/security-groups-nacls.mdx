@@ -1,86 +1,191 @@
 ---
 title: "Security Groups & NACLs"
-description: "Firewalls stateful y stateless — Security Groups a nivel de recurso y NACLs a nivel de subnet."
+description: "Firewalls stateful y stateless — Security Groups a nivel de recurso, NACLs a nivel de subnet, puertos efímeros y troubleshooting de conectividad."
 ---
 
 ## Resumen
 
 AWS ofrece dos mecanismos de firewall para controlar el tráfico en tu VPC:
 
-- **Security Groups** — firewalls **stateful** que operan a nivel de recurso (EC2, ENI, etc.)
+- **Security Groups (SGs)** — firewalls **stateful** que operan a nivel de recurso (EC2, ENI, RDS, ALB, etc.)
 - **Network ACLs (NACLs)** — firewalls **stateless** que operan a nivel de subnet
 
-## Stateful vs Stateless
+Ambos controles son complementarios: el tráfico debe pasar primero por la NACL de la subnet y luego por el Security Group del recurso.
 
-| Tipo | Comportamiento |
-|---|---|
-| **Stateful** (Security Groups) | Si permites tráfico de entrada, la respuesta se permite automáticamente sin necesidad de regla de salida |
-| **Stateless** (NACLs) | Debes permitir explícitamente tanto el tráfico de entrada como el de salida |
+## Arquitectura
 
-## Security Groups
+<Mermaid chart={`
+graph TD
+  Internet["Internet"]
+  NACL_In["NACL (Inbound)\nSubnet boundary - Stateless"]
+  SG_In["Security Group (Inbound)\nInstance boundary - Stateful"]
+  EC2["EC2 Instance"]
+  SG_Out["Security Group (Outbound)\nStateful - respuesta automática"]
+  NACL_Out["NACL (Outbound)\nStateless - requiere regla explícita"]
 
-Los Security Groups actúan como firewalls para recursos individuales (EC2, NICs, etc.).
+  Internet -->|"Tráfico entrante"| NACL_In
+  NACL_In -->|"Si regla ALLOW"| SG_In
+  SG_In -->|"Si regla ALLOW"| EC2
+  EC2 -->|"Respuesta"| SG_Out
+  SG_Out -->|"Stateful: permitido automáticamente"| NACL_Out
+  NACL_Out -->|"Stateless: necesita regla ALLOW explícita"| Internet
+`} />
 
-### Reglas de Security Groups
+## Conceptos Clave
+
+### Stateful vs Stateless
+
+La diferencia fundamental entre Security Groups y NACLs:
+
+| Concepto | Stateful (Security Groups) | Stateless (NACLs) |
+|---|---|---|
+| **¿Qué recuerda?** | El estado de la conexión | Nada — cada paquete es independiente |
+| **Respuesta de tráfico** | Permitida automáticamente sin regla | Requiere regla explícita en ambas direcciones |
+| **Ejemplo práctico** | Permites HTTP entrada puerto 80 → la respuesta sale automáticamente | Permites HTTP entrada puerto 80 → DEBES también permitir salida en puertos efímeros |
+
+**Ejemplo concreto**:
+- Un usuario hace una petición HTTP a tu EC2 en puerto 80
+- **Con SG (stateful)**: la regla de inbound puerto 80 permite la petición. La respuesta sale automáticamente.
+- **Con NACL (stateless)**: necesitas regla inbound puerto 80 (petición) Y regla outbound puertos efímeros 1024-65535 (respuesta).
+
+### Security Groups en Detalle
+
+Los Security Groups son firewalls para recursos individuales (EC2, RDS, ALB, ENI, etc.).
+
+#### Reglas de Security Groups
 
 Cada regla define:
 
-- **IP version** — IPv4 o IPv6
-- **Type** — tipo de tráfico (HTTP, SSH, Custom TCP, etc.)
-- **Protocol** — TCP, UDP, ICMP, etc.
-- **Port range** — puerto o rango de puertos (ej: 80, 200-300)
-- **Source/Destination** — IP, rango CIDR o ID de otro Security Group
-- **Description** — descripción opcional
+| Campo | Descripción | Ejemplo |
+|---|---|---|
+| **IP version** | IPv4 o IPv6 | IPv4 |
+| **Type** | Tipo de tráfico predefinido | HTTP, SSH, Custom TCP |
+| **Protocol** | TCP, UDP, ICMP, All | TCP |
+| **Port range** | Puerto o rango | 80, 8080-8090 |
+| **Source/Destination** | IP, CIDR, o ID de otro SG | `0.0.0.0/0`, `sg-xxxxxx` |
 
-### Comportamiento Clave
+#### Comportamiento Clave de Security Groups
 
 - Sin reglas = **todo bloqueado** (deny implícito)
-- Las reglas solo pueden **permitir** tráfico — no hay opción de deny
-- Por defecto, el Security Group permite **todo el tráfico saliente**
-- Puedes asignar **múltiples Security Groups** a un recurso — las reglas se **fusionan**
+- Las reglas solo pueden **permitir** tráfico — no existe "deny" explícito
+- Por defecto, el SG permite **todo el tráfico saliente**
+- Puedes asignar **múltiples Security Groups** a un recurso — las reglas se **fusionan** (union de todos los allows)
+- Puedes usar **IDs de Security Groups como origen/destino** — útil para auto-scaling: el SG del ALB como origen en el SG del EC2
 
-### Ejemplo
+#### SG Referencing (Referencia de SGs)
 
-| Dirección | Type | Protocol | Port | Source |
-|---|---|---|---|---|
-| Inbound | HTTP | TCP | 80 | `0.0.0.0/0` |
-| Inbound | SSH | TCP | 22 | `1.1.1.1/32` |
-| Outbound | All traffic | All | All | `0.0.0.0/0` |
+En lugar de IPs o CIDRs, puedes usar otro SG como fuente/destino. Ejemplo:
 
-## Network ACLs (NACLs)
+| Recurso | Regla Inbound |
+|---|---|
+| EC2 (app tier) | Source: `sg-alb-id`, Port: 8080 |
 
-Las NACLs filtran tráfico que **entra y sale de una subnet**.
+Esto permite que solo instancias con el SG del ALB accedan al puerto 8080 del EC2, independientemente de sus IPs. **Ideal para Auto Scaling Groups** donde las IPs cambian.
 
-### Reglas de NACLs
+#### Security Group por Defecto
 
-Cada regla tiene:
+Cuando creas una VPC, se crea un SG por defecto:
+- **Inbound**: permite todo el tráfico **desde el mismo SG** (self-referencing)
+- **Outbound**: permite todo el tráfico a cualquier destino
 
-- **Rule number** — determina el orden de procesamiento (menor número = mayor prioridad)
-- **Type** — tipo de tráfico
-- **Protocol** — protocolo
-- **Port range** — puertos
-- **Source/Destination** — direcciones IP
-- **Allow/Deny** — a diferencia de Security Groups, las NACLs pueden **permitir o denegar**
+Modificar el SG por defecto es válido, pero la práctica recomendada es crear SGs personalizados.
 
-Las reglas se procesan **en orden numérico**. Cuando una regla coincide, se aplica y no se evalúan más reglas.
+### NACLs en Detalle
 
-### Comportamiento Clave
+Las NACLs filtran tráfico que **entra y sale de una subnet** — afectan a todos los recursos en la subnet.
 
-- Cada subnet debe estar asociada a **exactamente una** NACL
-- Una NACL puede estar asociada a **múltiples subnets**
-- Las NACLs tienen una regla final catch-all que **deniega todo** el tráfico no coincidente
+#### Reglas de NACLs
 
-## Comparación
+| Campo | Descripción |
+|---|---|
+| **Rule number** | Determina el orden (menor = mayor prioridad). Se recomienda incrementos de 100 |
+| **Type** | Tipo de tráfico predefinido |
+| **Protocol** | TCP, UDP, ICMP, etc. |
+| **Port range** | Puerto o rango |
+| **Source/Destination** | CIDR (no soporta IDs de SG) |
+| **Allow / Deny** | A diferencia de SGs, las NACLs pueden **denegar explícitamente** |
+
+Las reglas se procesan **en orden numérico ascendente**. La primera regla que coincide se aplica y no se evalúan más.
+
+#### Regla * (catch-all)
+
+Todas las NACLs tienen una regla `*` al final (rule number implícito) que **deniega todo** el tráfico que no coincidió con ninguna regla anterior.
+
+#### NACL por Defecto
+
+La NACL creada automáticamente con la VPC (default NACL) **permite todo el tráfico** (inbound y outbound):
+- Rule 100: Allow All → todo pasa
+- Rule *: Deny All → nunca se alcanza
+
+#### NACL Personalizada
+
+Una NACL nueva que creas manualmente **deniega todo** hasta que agregas reglas:
+- Rule *: Deny All → todo bloqueado hasta que agregues reglas
+
+### Puertos Efímeros
+
+Los puertos efímeros son el origen de muchos problemas al configurar NACLs (no afectan a SGs por ser stateful).
+
+Cuando un cliente se conecta a un servidor en el puerto 80, el cliente usa un **puerto efímero aleatorio** como origen para recibir la respuesta:
+
+| Sistema Operativo | Rango de Puertos Efímeros |
+|---|---|
+| Linux (kernel moderno) | 32768 – 60999 |
+| Windows | 49152 – 65535 |
+| NAT Gateway | 1024 – 65535 |
+| Clientes en general | 1024 – 65535 |
+
+**Para las NACLs**: debes permitir explícitamente el rango de puertos efímeros en las reglas de salida (outbound) de la NACL de la subnet del servidor. Si no, las respuestas al cliente son bloqueadas.
+
+## Comparativa: Security Groups vs NACLs
 
 | Característica | Security Groups | NACLs |
 |---|---|---|
-| **Nivel** | Recurso (EC2, ENI) | Subnet |
+| **Nivel** | Recurso (EC2, ENI, RDS, ALB) | Subnet |
 | **Tipo** | Stateful | Stateless |
 | **Reglas** | Solo allow | Allow y deny |
-| **Orden de reglas** | Todas se evalúan | Se procesan por número |
+| **Orden de reglas** | Todas se evalúan (unión) | Orden numérico (primera coincidencia) |
 | **Múltiples por recurso** | Sí (se fusionan) | No (una por subnet) |
-| **Default outbound** | Permite todo | Depende de la configuración |
+| **Default deny** | Implícito (sin reglas = todo bloqueado) | Regla `*` al final |
+| **Referencia a otros SGs** | Sí | No (solo CIDRs) |
+| **Puertos efímeros** | No necesario (stateful) | Requeridos en outbound |
+| **Bloqueo explícito** | No | Sí (puede denegar IPs específicas) |
+| **Asociación** | Una o más por recurso | Exactamente una por subnet |
+
+## Configuración y Troubleshooting
+
+Pasos para diagnosticar problemas de conectividad en una VPC:
+
+1. **¿Tiene IP pública o EIP la instancia?** — Sin IP pública no hay acceso desde internet
+2. **¿Existe ruta al IGW en la route table?** — Subnet pública requiere `0.0.0.0/0 → IGW`
+3. **¿El Security Group permite el tráfico?** — Verifica reglas inbound y el puerto correcto
+4. **¿La NACL permite el tráfico?** — Verifica tanto inbound como outbound (stateless)
+5. **¿La NACL permite los puertos efímeros en outbound?** — Necesario para respuestas del servidor
+6. **¿Hay reglas DENY en la NACL que bloqueen antes del ALLOW?** — Recuerda que NACLs procesan en orden
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Security Groups son stateful (respuestas automáticas) y solo permiten; NACLs son stateless (requieren reglas explícitas en ambas direcciones) y pueden permitir o denegar. Múltiples Security Groups se fusionan. Cada subnet tiene exactamente una NACL.
+**Consejos para el examen SAA-C03:**
+- **Security Groups = Stateful**: si permites entrada, la salida de respuesta es automática. **NACLs = Stateless**: debes permitir ambas direcciones.
+- **El orden importa en las NACLs**: si tienes una regla DENY en el número 100 y una ALLOW en el 200 para el mismo tráfico, el DENY gana (se evalúa primero).
+- **Los puertos efímeros son críticos en NACLs**: si bloqueas el rango 1024-65535 en outbound de una NACL, rompes las respuestas a clientes.
+- **Una subnet = una NACL**. Un recurso puede tener **múltiples SGs** (se fusionan).
+- Si necesitas **bloquear una IP específica**, las NACLs son la herramienta (SGs no tienen deny explícito).
+- La **NACL por defecto permite todo**; una NACL personalizada nueva **deniega todo** hasta que agregues reglas.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Security Groups & NACLs:**
+
+| Propiedad | Security Groups | NACLs |
+|---|---|---|
+| Nivel | Recurso | Subnet |
+| Stateful | Sí | No |
+| Allow/Deny | Solo Allow | Allow y Deny |
+| Orden | Todas evaluadas | Numérico (primera coincidencia) |
+| Múltiples | Sí, se fusionan | No (1 por subnet) |
+| Default nueva | Deny all (sin reglas) | Deny all (regla *) |
+| Default existente | Outbound allow all | Allow all |
+| CIDR source | Sí | Sí |
+| SG ID source | Sí | No |
+| Puertos efímeros | No aplica | Obligatorio en outbound |
 </Callout>

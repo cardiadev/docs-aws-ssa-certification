@@ -1,78 +1,151 @@
 ---
 title: "Subnets"
-description: "Subnets within a VPC — public, private, IP addressing and Availability Zones."
+description: "Subnets within a VPC — public, private, IP addressing, reserved IPs, and Availability Zones."
 ---
 
 ## Overview
 
-**Subnets** are groups of IP addresses within your VPC where you deploy resources. Each subnet resides in **a single Availability Zone (AZ)**, and this is how you determine which AZ a resource is deployed into.
+**Subnets** are IP segments within your VPC where you deploy resources. Each subnet resides in **a single Availability Zone (AZ)**, which determines which AZ the resource is deployed into. A subnet cannot span multiple AZs.
+
+The fundamental difference between a public and a private subnet is the presence of a **route to an Internet Gateway** in its route table — not simply whether a public IP is assigned.
+
+## Architecture
+
+<Mermaid chart={`
+graph TD
+  VPC["VPC (10.0.0.0/16)"]
+  AZ1["AZ us-east-1a"]
+  AZ2["AZ us-east-1b"]
+  PubA["Public Subnet 10.0.1.0/24"]
+  PrivA["Private Subnet 10.0.2.0/24"]
+  PubB["Public Subnet 10.0.3.0/24"]
+  PrivB["Private Subnet 10.0.4.0/24"]
+  IGW["Internet Gateway"]
+  NATGW["NAT Gateway"]
+  Internet["Internet"]
+
+  VPC --> AZ1
+  VPC --> AZ2
+  AZ1 --> PubA
+  AZ1 --> PrivA
+  AZ2 --> PubB
+  AZ2 --> PrivB
+  PubA --> IGW
+  PubB --> IGW
+  IGW --> Internet
+  PrivA --> NATGW
+  PrivB --> NATGW
+  NATGW --> IGW
+`} />
 
 ## Key Concepts
 
-### Subnets and Availability Zones
-
-When you deploy a resource (such as an EC2 instance), you deploy it into a specific subnet. That subnet exists in a single AZ, so the resource ends up in that AZ.
-
-- **Subnet 1** in AZ `us-east-1a` → resources deployed here will be in `us-east-1a`
-- **Subnet 2** in AZ `us-east-1b` → resources here will be in `us-east-1b`
-
-### Addressing Rules
-
-- Subnets must be **within the VPC's CIDR range**
-- Block size must be between **/16** and **/28**
-- Subnets **cannot overlap** with other subnets in the same VPC (but can overlap with subnets in different VPCs)
-- By default, subnets within the same VPC **can communicate with each other** without additional configuration
-
 ### Reserved IP Addresses
 
-In every subnet, **5 IP addresses are reserved** and cannot be assigned to resources:
+In every subnet, **5 IP addresses are reserved** by AWS and cannot be assigned to resources. For a `10.0.1.0/24` subnet:
 
-| Address | Purpose |
-|---|---|
-| First (`.0`) | Network address |
-| Second (`.1`) | VPC router |
-| Third (`.2`) | DNS server |
-| Fourth (`.3`) | Reserved by AWS for future use |
-| Last (`.255`) | Broadcast address |
+| Address | Example IP | Purpose | Why It Is Reserved |
+|---|---|---|---|
+| First (`.0`) | 10.0.1.0 | Network address | Identifies the network; cannot be assigned to hosts |
+| Second (`.1`) | 10.0.1.1 | VPC router | Used by the VPC router to forward traffic between subnets |
+| Third (`.2`) | 10.0.1.2 | AWS DNS server | Reserved for the Amazon DNS resolver (169.254.169.253) |
+| Fourth (`.3`) | 10.0.1.3 | Reserved by AWS | Reserved for future AWS service use |
+| Last (`.255`) | 10.0.1.255 | Broadcast address | Network broadcast (reserved even though AWS does not support broadcast) |
 
-**Example:** in a `192.168.10.0/24` subnet, IPs `.0`, `.1`, `.2`, `.3` and `.255` are unavailable, leaving 251 usable IPs.
+**Practical implication:** if you need exactly 29 IPs for hosts, you need a /27 subnet (32 total IPs, 27 usable), not a /28 (16 total IPs, 11 usable).
 
-## Public vs Private Subnets
+### CIDR Sizing
 
-The difference between a public and private subnet depends on whether devices on the internet can reach resources deployed in it.
+| Prefix | Total IPs | Usable IPs | Typical Use |
+|---|---|---|---|
+| /16 | 65,536 | 65,531 | Entire VPC |
+| /20 | 4,096 | 4,091 | Large subnet (default VPC) |
+| /22 | 1,024 | 1,019 | Medium-large subnet |
+| /24 | 256 | 251 | Most common standard subnet |
+| /25 | 128 | 123 | Medium subnet |
+| /26 | 64 | 59 | Small subnet |
+| /27 | 32 | 27 | Very small subnet |
+| /28 | 16 | 11 | Minimum allowed subnet |
 
-| Question | Subnet |
-|---|---|
-| Do internet users need to access the resource? | **Public** |
-| Do only other internal resources need access? | **Private** |
+### Public vs Private Subnets
 
-### Architecture Example
+What makes a subnet public or private is **the route in its route table**, not its name or any special flag:
 
-A very common pattern:
+| Feature | Public Subnet | Private Subnet |
+|---|---|---|
+| **Default route** | `0.0.0.0/0` → Internet Gateway | No IGW route (or route to NAT GW) |
+| **Inbound from internet** | Yes (requires public IP or EIP) | No (internet cannot initiate connections) |
+| **Outbound to internet** | Direct via IGW | Outbound only via NAT Gateway |
+| **Typical resources** | Load balancers, bastion hosts, NAT GW | App servers, databases, caches |
+| **Auto-assign public IP** | Generally enabled | Generally disabled |
 
-1. **Web server** → **public** subnet (users need access from the internet)
-2. **Database** → **private** subnet (only the web server needs to communicate with it)
+### Auto-assign Public IP
 
-Users connect to the web server on the public subnet, and the web server communicates internally with the database on the private subnet. This protects the database from direct internet access.
+The **Auto-assign public IPv4 address** option on a subnet determines whether instances launched in it automatically receive a public IP:
 
-### Another Use Case: Data Center Extension
+- Only effective in subnets with a route to an IGW (public subnets)
+- The auto-assigned public IP is **not an Elastic IP** — it changes when the instance is stopped and started
+- For static IPs you need an **Elastic IP**
+- You can override the subnet setting when launching a specific instance
 
-If you use AWS as an extension of your private data center, you can deploy all resources in private subnets and connect your data center to AWS via a **VPN**. You don't need public subnets because the resources don't require direct internet access.
+### IPv6 in Subnets
+
+- Each subnet can receive an IPv6 **/64** block (from the /56 assigned to the VPC)
+- IPv6 addresses are **globally unique** and publicly routable by design
+- No NAT for IPv6 — use the **Egress-Only Internet Gateway** for outbound IPv6 traffic from private subnets
+- A subnet can be **dual-stack** (IPv4 + IPv6) or **IPv6-only**
+- IPv6 addresses persist as long as the instance exists (they do not change on restart)
+
+## Use Cases
+
+| Tier | Subnet Type | Typical Resource | Reason |
+|---|---|---|---|
+| Web / Presentation | Public | ALB, CloudFront origin, bastion host | Must be reachable from the internet |
+| Application | Private | EC2 business logic, ECS tasks | Reachable only from the ALB, not from the internet |
+| Database | Private | RDS, ElastiCache, DynamoDB VPC endpoint | Reachable only from the application tier |
+| NAT | Public | NAT Gateway | Needs a public IP to forward outbound traffic |
+| VPN / Direct Connect | Private | Virtual Private Gateway | Hybrid connectivity, not exposed to the internet |
+| Administration | Public (restricted) | Bastion host / Session Manager | Controlled administrative access |
 
 ## Configuration
 
-When creating a subnet you can:
+To create a subnet from the AWS console:
 
-- Assign it to a **specific AZ**
-- Define an **IPv4 CIDR block** within the VPC range
-- Optionally define an **IPv6 /64 CIDR block**
-- Enable **auto-assign public IP** (required for public subnets)
-- Configure subnets to use **IPv6 only** without IPv4 addresses
+1. Navigate to **VPC → Subnets → Create subnet**
+2. Select the target **VPC**
+3. Assign a **descriptive name** (e.g., `prod-public-1a`, `prod-private-1a`)
+4. Select the **Availability Zone** (avoid "No preference" in production)
+5. Define the **IPv4 CIDR block** within the VPC range (e.g., `10.0.1.0/24`)
+6. Optionally assign an **IPv6 /64 CIDR block**
+7. Click **Create subnet**
 
-<Callout type="info">
-**What determines whether a subnet is public or private are the gateways:** a subnet with a route to an Internet Gateway is public; without that route, it is private. The auto-assign public IP setting is complementary, not the determining factor.
-</Callout>
+After creating the subnet:
+- To make it **public**: edit its route table and add a `0.0.0.0/0 → IGW` route; enable auto-assign public IP
+- To make it **private with internet access**: configure the route table with `0.0.0.0/0 → NAT Gateway`
 
 <Callout type="warn">
-**For the SAA-C03 exam:** Remember that subnets cannot overlap within the same VPC, that 5 IPs are reserved by AWS in each subnet, and that subnets reside in a single AZ. If you need high availability, deploy resources in subnets across multiple AZs.
+**SAA-C03 Exam Tips:**
+- Subnets **cannot overlap** within the same VPC.
+- There are always **5 IPs reserved** by AWS in each subnet (not 4, not 3 — always 5).
+- Subnets reside in **a single AZ**. For high availability, deploy resources in subnets across multiple AZs.
+- What makes a subnet public is a **route to an IGW** in its route table, not a flag on the subnet itself.
+- The auto-assigned public IP is **not an Elastic IP** and changes when the instance is stopped and started.
+- For outbound IPv6 from private subnets, use the **Egress-Only Internet Gateway**, not a NAT Gateway.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Subnets:**
+
+| Property | Value |
+|---|---|
+| Scope | Single AZ |
+| Allowed CIDR size | /16 to /28 |
+| Reserved IPs by AWS | 5 per subnet |
+| Public subnet | Route 0.0.0.0/0 → IGW |
+| Private subnet | No route to IGW |
+| Auto-assign public IP | Not an Elastic IP (changes on restart) |
+| IPv6 per subnet | /64 block |
+| Max subnets per VPC | 200 (adjustable) |
+| Intra-VPC communication | Enabled by default via local route |
+| Default subnet CIDR | /20 (4,096 total IPs, 4,091 usable) |
 </Callout>

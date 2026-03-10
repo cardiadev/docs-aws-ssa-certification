@@ -1,71 +1,212 @@
 ---
-title: "CloudFront"
-description: "Amazon CloudFront — global CDN for content delivery with edge locations, TTL and cache invalidation."
+title: Amazon CloudFront
+description: "Amazon CloudFront — global CDN with 400+ edge locations, OAC, Signed URLs, WAF and Lambda@Edge for the SAA-C03 exam."
 ---
+
 
 ## Overview
 
-**Amazon CloudFront** is a **Content Delivery Network (CDN)** service that delivers content through a worldwide network of data centers called **edge locations**. It brings content closer to end users to reduce latency.
+Amazon CloudFront is a fully managed global **Content Delivery Network (CDN)** from AWS. With more than **400 edge locations** worldwide, it delivers static, dynamic, and streaming content with low latency by caching it close to end users.
+
+CloudFront integrates natively with S3, ALB, EC2, and custom HTTP origins. It includes DDoS protection through **AWS Shield Standard** at no additional cost.
+
+## Architecture
+
+<Mermaid chart={`
+sequenceDiagram
+  participant User as User
+  participant EdgeLocation as Edge Location
+  participant Origin as Origin (S3 / ALB)
+
+  User->>EdgeLocation: GET /image.jpg
+  EdgeLocation-->>User: Cache HIT (200 OK, from cache)
+
+  User->>EdgeLocation: GET /new-page.html
+  EdgeLocation->>Origin: Cache MISS - forward to origin
+  Origin-->>EdgeLocation: Response + cache headers
+  EdgeLocation-->>User: Response (cached for next request)
+`} />
 
 ## Key Concepts
 
-### Origin
+### Origins
 
-The **origin** is the original source of the content that CloudFront distributes. It can be:
+CloudFront supports the following origin types:
 
-- An **S3 bucket**
-- A **web server** (EC2, on-premises, etc.)
-- An **Application Load Balancer**
-
-### Distribution
-
-A **distribution** is the configuration unit for CloudFront. When you create one:
-
-1. You specify where the source files are (origin)
-2. CloudFront generates a **domain name** (e.g. `xyz.cloudfront.net`)
-3. The configuration is pushed to all edge locations
-
-### Edge Locations
-
-**Edge locations** are globally distributed data centers where content is cached:
-
-- If content is cached → immediate response to the user
-- If not cached → the edge location fetches from the origin, caches it, and sends it to the user
-
-## Time to Live (TTL)
-
-The **TTL** determines how long content remains valid in cache before expiring.
-
-| Setting | Value |
+| Origin Type | Description |
 |---|---|
-| **Default TTL** | 24 hours |
-| **Custom TTL** | Configurable per object or distribution |
+| **Amazon S3** | Static websites, files, assets |
+| **Application Load Balancer** | Dynamic web applications |
+| **EC2 Instance** | Custom application servers |
+| **Custom HTTP Origin** | Any publicly accessible HTTP/HTTPS server |
+| **S3 Static Website** | Bucket configured as a static website |
 
-After TTL expires, the edge location must request the content again from the origin.
+### OAC vs OAI
 
-## Cache Invalidation
+To restrict direct S3 access and force users through CloudFront:
 
-**Cache invalidation** allows you to manually clear cached content before the TTL expires.
+| Feature | OAC (Origin Access Control) | OAI (Origin Access Identity) |
+|---|---|---|
+| **Status** | Recommended (new) | Legacy |
+| **S3 SSE-KMS** | Supported | Not supported |
+| **HTTP Methods** | All (GET, PUT, DELETE, etc.) | GET, HEAD, OPTIONS |
+| **S3 Regions** | All | Limited |
 
-Useful when you update files at the origin and need users to get the new version immediately.
+> **Recommendation:** Always use **OAC** for new distributions. OAI is considered deprecated.
 
-Invalidation options:
-- `/*` — invalidate the **entire** distribution
-- `/images/*` — invalidate all objects in a folder
-- `/file.jpg` — invalidate a specific object
+### Behaviors and Cache Key
 
-## SSL/TLS and Domains
+- **Behaviors** define rules based on path patterns (e.g., `/api/*` → ALB, `/*.jpg` → S3).
+- The **Cache Key** determines what makes an object unique in cache. It can include: query strings, headers, and cookies.
+- **Cache Policies** and **Origin Request Policies** control what is included in the key and what is forwarded to the origin.
 
-- **HTTPS enabled by default** with an SSL certificate for `*.cloudfront.net`
-- For **custom domains**, use **AWS Certificate Manager (ACM)** to create certificates
-- CloudFront automatically publishes metrics to **CloudWatch**
+### Signed URLs vs Signed Cookies
+
+| Feature | Signed URL | Signed Cookie |
+|---|---|---|
+| **Scope** | A single file | Multiple files or entire site |
+| **Use case** | Download a specific file | Premium content / subscriptions |
+| **Compatibility** | All clients | Browsers only |
+| **Expiration** | Configurable per URL | Configurable per cookie |
+
+### Geo-Restriction
+
+- **Allowlist:** Only allows access from specific countries.
+- **Blocklist:** Blocks access from specific countries.
+- Applied at the distribution level, not per individual behavior.
+
+### Price Classes
+
+| Class | Included Edge Locations | Cost |
+|---|---|---|
+| **Price Class All** | All edge locations (global) | Highest |
+| **Price Class 200** | Excludes most expensive regions | Medium |
+| **Price Class 100** | Only cheapest regions | Lowest |
+
+### WAF Integration
+
+- You can attach an **AWS WAF Web ACL** to a CloudFront distribution.
+- Allows blocking IPs, countries, and malicious request patterns.
+- Provides protection against DDoS attacks (Layer 7).
+- **Important:** WAF for CloudFront must be created in the **us-east-1 (N. Virginia)** region.
+
+### Lambda@Edge and CloudFront Functions
+
+| Feature | CloudFront Functions | Lambda@Edge |
+|---|---|---|
+| **Max execution time** | < 1 ms | Up to 30 s (origin triggers) |
+| **Max memory** | 2 MB | Up to 10,240 MB |
+| **Cost** | Very low | Higher |
+| **Use cases** | Rewrites, redirects, simple headers | Auth, A/B testing, complex logic |
+| **Network access** | No | Yes |
+| **Trigger points** | Viewer Request / Viewer Response | All 4 triggers |
+
+## Distribution Types and Protocols
+
+CloudFront supports the following origin and viewer protocols:
+
+| Setting | Options |
+|---|---|
+| **Viewer Protocol Policy** | HTTP only, HTTPS only, Redirect HTTP to HTTPS |
+| **Origin Protocol Policy** | HTTP only, HTTPS only, Match viewer |
+| **HTTP versions** | HTTP/1.1, HTTP/2, HTTP/3 |
+| **Allowed HTTP Methods** | GET/HEAD, GET/HEAD/OPTIONS, All methods (including PUT/POST/PATCH/DELETE) |
+
+### TTL and Cache Control
+
+CloudFront TTL can be controlled through:
+
+- **Cache-Control: max-age=X** — the origin tells the edge location the TTL.
+- **Expires header** — absolute expiration date.
+- **CloudFront minimum/maximum/default TTL** — limits configured in the behavior.
+
+| Origin header | Effect on CloudFront |
+|---|---|
+| `Cache-Control: max-age=3600` | CloudFront caches for 1 hour |
+| `Cache-Control: no-cache` | CloudFront validates with origin on every request |
+| `Cache-Control: no-store` | CloudFront does not cache |
+| No cache header | CloudFront uses Default TTL (86,400 s) |
+
+## Comparison: CloudFront vs S3 Transfer Acceleration
+
+| Feature | CloudFront | S3 Transfer Acceleration |
+|---|---|---|
+| **Purpose** | Global content distribution (reads) | Accelerate uploads to S3 |
+| **Traffic direction** | Origin → Users (download) | Users → S3 (upload) |
+| **Caching** | Yes | No |
+| **Edge Locations** | 400+ | Same edge network |
+| **Use case** | CDN, websites, streaming | Global S3 uploads |
 
 ## Use Cases
 
-- **Static websites** — HTML, CSS, JS without server-side logic
-- **Video on demand and streaming**
-- **Media files** — images, documents, any type of file
+| Scenario | CloudFront Solution |
+|---|---|
+| Global static website | S3 + CloudFront + OAC |
+| Low-latency global API | ALB + CloudFront with low TTL |
+| Video streaming | CloudFront + S3 (HLS/DASH) |
+| Content protection | Signed URLs / Signed Cookies |
+| Country-level blocking | Geo-Restriction (blocklist) |
+| DDoS protection | WAF + Shield Standard |
+| Edge customization | Lambda@Edge / CloudFront Functions |
+
+## Configuration
+
+Typical steps to create a CloudFront distribution with an S3 origin:
+
+1. Create an S3 bucket (without public access enabled).
+2. Create a CloudFront distribution → S3 origin.
+3. Create and associate an **Origin Access Control (OAC)**.
+4. Update the **S3 bucket policy** to allow access only from CloudFront.
+5. Configure behaviors (path patterns, HTTP methods, TTL).
+6. (Optional) Attach a **WAF Web ACL** (created in us-east-1).
+7. (Optional) Configure a custom domain with an ACM certificate in **us-east-1**.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "cloudfront.amazonaws.com" },
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::my-bucket/*",
+    "Condition": {
+      "StringEquals": {
+        "AWS:SourceArn": "arn:aws:cloudfront::123456789012:distribution/EDFDVBD6EXAMPLE"
+      }
+    }
+  }]
+}
+```
 
 <Callout type="warn">
-**For the SAA-C03 exam:** The origin is the content source; the distribution is the configuration. Default TTL is 24 hours. Cache invalidation lets you clear content before TTL expires. HTTPS is enabled by default. CloudFront serves content from edge locations closest to the user.
+**Exam Tips — SAA-C03:**
+- **OAC replaces OAI:** For new distributions always use OAC. OAI is legacy. OAC supports SSE-KMS on S3.
+- **Signed URLs for a single file; Signed Cookies for multiple files** or entire site access.
+- **CloudFront can cache dynamic content** if Cache Policies are configured properly (low TTL).
+- **WAF for CloudFront MUST be created in us-east-1** (N. Virginia), even if resources are in another region.
+- **SSL/TLS certificate for custom domain** must also be in ACM us-east-1.
+- **Price Class 100** = only cheapest regions; does not cover all global audiences.
+- **Geo-restriction** operates at the distribution level, not per individual behavior.
+- **CloudFront Functions** run only on Viewer Request/Response and are faster and cheaper.
+- **Default TTL:** 86,400 seconds (24 hours). Can be overridden with Cache-Control headers.
+- **Invalidations:** Charged after the first 1,000 paths per month.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Amazon CloudFront:**
+
+| Property | Value |
+|---|---|
+| **Edge Locations** | 400+ globally |
+| **Protocols** | HTTP, HTTPS, WebSocket |
+| **Supported origins** | S3, ALB, EC2, custom HTTP |
+| **Default TTL** | 86,400 s (24 hours) |
+| **Price Classes** | 3 (All, 200, 100) |
+| **S3 access** | OAC (recommended) / OAI (legacy) |
+| **Access restriction** | Signed URLs (1 file) / Signed Cookies (multiple) |
+| **WAF region** | us-east-1 required |
+| **SSL certificate** | ACM in us-east-1 |
+| **Shield Standard** | Included at no extra cost |
+| **CloudFront Functions** | Viewer Request/Response only |
+| **Lambda@Edge** | 4 trigger points, up to 30 s |
 </Callout>

@@ -1,48 +1,151 @@
 ---
-title: "Transit Gateway"
-description: "AWS Transit Gateway — hub centralizado para conectar múltiples VPCs y redes on-premises con enrutamiento transitivo."
+title: "AWS Transit Gateway"
+description: "Hub central de tránsito de red que reemplaza mallas complejas de peering y simplifica la conectividad híbrida."
 ---
 
 ## Resumen
 
-**AWS Transit Gateway** es un servicio que actúa como un **router centralizado** para conectar múltiples VPCs y redes on-premises. Elimina la necesidad de crear un full mesh de VPC Peerings, simplificando drásticamente la arquitectura de red.
+**AWS Transit Gateway (TGW)** es un hub de tránsito de red regional y administrado que actúa como router centralizado para conectar múltiples VPCs, redes on-premises (VPN y Direct Connect), y otros Transit Gateways. Reemplaza la malla compleja de VPC Peerings con un modelo **hub-and-spoke escalable**. A diferencia de VPC Peering, TGW soporta **enrutamiento transitivo** — una VPC puede comunicarse con otra a través del TGW sin peering directo.
 
-## El Problema que Resuelve
+## Arquitectura
 
-Con VPC Peering, si tienes 4 VPCs que necesitan comunicarse entre sí, necesitas **6 peerings** (full mesh). A medida que creces, la cantidad de peerings escala exponencialmente. Además, necesitarías una conexión VPN separada desde on-premises a cada VPC.
+<Mermaid chart={`
+flowchart TD
+  TGW{{"Transit Gateway\n(hub central)"}}
+  VPCA["VPC-A\n(Producción)"]
+  VPCB["VPC-B\n(Desarrollo)"]
+  VPCC["VPC-C\n(Seguridad)"]
+  OP["On-Premises\n(via VPN / Direct Connect)"]
+  VPCR["VPC-D\n(otra región via TGW Peering)"]
 
-Transit Gateway resuelve esto: cada VPC solo necesita **una conexión** al Transit Gateway, y este se encarga del enrutamiento entre todas.
+  VPCA --> TGW
+  VPCB --> TGW
+  VPCC --> TGW
+  OP --> TGW
+  VPCR --> TGW
+`} />
 
-## Cómo Funciona
+## Conceptos Clave
 
-1. Despliegas un **Transit Gateway**
-2. Conectas cada VPC al Transit Gateway
-3. El Transit Gateway actúa como router y permite **enrutamiento transitivo** entre todas las VPCs conectadas
+### TGW Route Tables
 
-```
-VPC A ─┐
-VPC B ─┤── Transit Gateway ──┤── VPN / Direct Connect → On-premises
-VPC C ─┤
-VPC D ─┘
-```
+El Transit Gateway tiene sus propias **tablas de rutas** separadas de las de las VPCs:
 
-### Requisito de Subnets
+- Cada **attachment** (VPC, VPN, DX) puede asociarse a una tabla de rutas del TGW.
+- Las rutas en las tablas de TGW controlan qué attachments pueden comunicarse entre sí.
+- Esto permite implementar **segmentación de red**: por ejemplo, que las VPCs de producción no puedan alcanzar directamente las VPCs de desarrollo.
+- Puedes tener múltiples tablas de rutas en un TGW para implementar diferentes políticas de enrutamiento.
 
-Debes especificar **una subnet por cada AZ** en cada VPC que quieras conectar al Transit Gateway. Estas subnets dedicadas permiten al TGW enrutar tráfico en esas AZs.
+### Tipos de Attachments
 
-## Conectividad On-Premises
+| Tipo de Attachment | Descripción |
+|---|---|
+| **VPC** | Conecta una VPC al TGW. Requiere una subnet por AZ en la VPC. |
+| **VPN (Site-to-Site)** | Termina conexiones VPN IPSec directamente en el TGW. |
+| **Direct Connect (Transit VIF)** | Conecta una conexión Direct Connect al TGW via Transit VIF. Permite acceder a todas las VPCs del TGW desde on-premises. |
+| **TGW Peering** | Conecta dos Transit Gateways (misma o diferente región/cuenta). Permite arquitecturas multi-región. |
+| **SD-WAN / Appliance** | Conecta dispositivos de red virtuales (firewalls, SD-WAN) para inspección de tráfico. |
 
-- Puedes terminar una **VPN** directamente en el Transit Gateway (en lugar de necesitar una VPN por VPC)
-- También soporta **Direct Connect** para conexión on-premises
-- Reduces múltiples conexiones VPN a **una sola**
+### Propagación de Rutas
 
-## Peering entre Transit Gateways
+- Los attachments pueden **propagar automáticamente** sus rutas a las tablas de rutas del TGW mediante BGP.
+- También puedes agregar rutas **estáticas** a las tablas de rutas del TGW.
+- La propagación elimina la necesidad de configurar manualmente las rutas cuando se añaden nuevas VPCs o conexiones.
 
-Los Transit Gateways pueden hacer peering con otros Transit Gateways en:
+### Multicast
 
-- **Diferentes regiones**
-- **Diferentes cuentas AWS**
+Transit Gateway es el **único servicio de red de AWS que soporta multicast routing**:
+
+- Permite enviar un único paquete a múltiples destinos simultáneamente.
+- Se configura mediante **multicast domains** y **multicast groups**.
+- Útil para distribución de video, aplicaciones financieras, y mensajería multicast.
+- No está disponible en todas las regiones de AWS.
+
+### Network Manager
+
+**AWS Network Manager** es un servicio de visualización y gestión centralizada de la red global:
+
+- Proporciona una vista gráfica de todos los TGWs, VPCs, conexiones VPN y DX en tu organización.
+- Monitorea el estado de la red, latencia y utilización de ancho de banda.
+- Integrado con AWS CloudWatch para alertas y métricas.
+
+### Límites del Servicio
+
+| Límite | Valor |
+|---|---|
+| **Attachments por TGW** | 5,000 |
+| **Tablas de rutas por TGW** | 50 |
+| **Rutas por tabla de rutas** | 10,000 |
+| **Ancho de banda por VPC attachment** | 50 Gbps (burst) |
+| **TGW Peerings por TGW** | 50 |
+
+### Cross-Region Peering
+
+Los Transit Gateways pueden hacer peering entre diferentes regiones para crear redes globales:
+
+- El tráfico entre TGWs viaja sobre el backbone privado de AWS.
+- **No soporta route propagation** en el peering cross-region — las rutas deben configurarse manualmente como rutas estáticas.
+- Tiene costo de transferencia de datos inter-región.
+
+## Comparativa: TGW vs VPC Peering
+
+| Característica | Transit Gateway | VPC Peering |
+|---|---|---|
+| **Enrutamiento transitivo** | Sí | No |
+| **Conexiones para 10 VPCs** | 10 attachments | 45 peerings |
+| **Segmentación de red** | Sí (múltiples route tables) | No |
+| **Costo** | Por attachment-hora + datos | Sin costo por peering (solo datos) |
+| **Complejidad de gestión** | Baja (hub centralizado) | Alta (malla de peerings) |
+| **Multicast** | Sí | No |
+| **VPN centralizada** | Sí (una VPN para todas las VPCs) | No (una VPN por VPC) |
+| **Cross-region** | Sí (TGW peering) | Sí (inter-region peering) |
+| **Mejor para** | Muchas VPCs, arquitecturas complejas | Pocas VPCs, conectividad simple |
+
+## Casos de Uso
+
+| Caso de Uso | Descripción |
+|---|---|
+| **Conectar muchas VPCs** | Reemplazar una malla de peerings compleja con un hub centralizado. Escala a miles de VPCs. |
+| **Conectividad híbrida centralizada** | Una sola conexión VPN o Direct Connect al TGW da acceso a todas las VPCs. |
+| **Segmentación de red** | Usar múltiples route tables en TGW para aislar prod, dev y staging. |
+| **Arquitectura multi-región** | Conectar TGWs en diferentes regiones para tráfico global sobre el backbone de AWS. |
+| **Inspección centralizada de tráfico** | Enrutar todo el tráfico a través de un firewall virtual (Appliance Mode). |
+
+## Configuración
+
+1. **Crear el Transit Gateway:** define el ASN de BGP y las opciones (DNS support, VPN ECMP support, multicast support).
+2. **Crear attachments de VPC:** para cada VPC, crea un attachment especificando una subnet por AZ. El TGW despliega interfaces de red en esas subnets.
+3. **Crear attachments de VPN o DX:** para conectividad on-premises, crea attachments de tipo VPN (Customer Gateway) o Transit VIF (Direct Connect).
+4. **Configurar tablas de rutas del TGW:** crea tablas de rutas adicionales si necesitas segmentación. Asocia cada attachment a la tabla de rutas correcta.
+5. **Habilitar propagación de rutas:** configura qué attachments propagan sus rutas a cada tabla de rutas del TGW.
+6. **Actualizar route tables de las VPCs:** agrega rutas en las subnets de cada VPC apuntando al TGW como gateway para los CIDRs de destino.
+7. **Verificar conectividad:** prueba la comunicación entre VPCs y desde on-premises a través del TGW.
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Transit Gateway permite enrutamiento transitivo (a diferencia de VPC Peering). Simplifica la conectividad entre múltiples VPCs y on-premises. Necesitas una subnet por AZ para el TGW. Puede hacer peering con TGWs en otras regiones y cuentas.
+**Exam Tips — SAA-C03:**
+
+- **TGW soporta enrutamiento transitivo:** esta es la diferencia clave con VPC Peering. Si el escenario requiere que VPCs se comuniquen entre sí sin peerings directos, la respuesta es Transit Gateway.
+- **TGW reemplaza la malla de peerings:** cuando veas un escenario con muchas VPCs que necesitan comunicarse y la solución actual es compleja, piensa en TGW.
+- **TGW es regional, pero soporta cross-region peering:** para conectar VPCs en regiones distintas, usa TGW Peering (con rutas estáticas, no propagadas).
+- **Requiere subnet por AZ en cada VPC:** al crear el attachment de VPC, debes especificar al menos una subnet por AZ de destino.
+- **Una VPN en TGW da acceso a todas las VPCs:** en lugar de crear una VPN por VPC, una sola VPN conectada al TGW puede alcanzar todas las VPCs attached.
+- **Segmentación con múltiples route tables:** si el escenario requiere aislar tráfico entre grupos de VPCs (prod vs dev), la solución es múltiples tablas de rutas en el TGW.
+- **Multicast solo en TGW:** si el escenario menciona multicast routing en AWS, la respuesta es Transit Gateway.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — AWS Transit Gateway:**
+
+| Propiedad | Valor |
+|---|---|
+| **Máximo de attachments** | 5,000 por TGW |
+| **Tablas de rutas** | 50 por TGW |
+| **Enrutamiento transitivo** | Sí |
+| **Multicast** | Sí (único servicio de red AWS con multicast) |
+| **Cross-region** | Sí, via TGW Peering (rutas estáticas) |
+| **Tipos de attachment** | VPC, VPN, Direct Connect, TGW Peering, SD-WAN |
+| **Segmentación de red** | Sí, mediante múltiples route tables |
+| **VPN centralizada** | Sí, una VPN para todas las VPCs |
+| **Pricing** | Por attachment-hora + datos procesados |
+| **Vs VPC Peering** | TGW para muchas VPCs; Peering para pocas |
 </Callout>

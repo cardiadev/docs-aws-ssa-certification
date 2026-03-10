@@ -1,55 +1,138 @@
 ---
-title: "Routing in VPC"
-description: "Tablas de rutas, rutas locales y cómo fluye el tráfico dentro de una VPC."
+title: "Routing en VPC"
+description: "Tablas de rutas, longest prefix match, rutas locales y cómo fluye el tráfico dentro y fuera de una VPC."
 ---
 
 ## Resumen
 
-Cada VPC tiene un **VPC router** que se encarga de enrutar el tráfico entre subnets, así como hacia y desde la VPC. El router tiene una interfaz en cada subnet, accesible desde la dirección **network + 1** (ej: si la subnet es `192.168.1.0/24`, el router está en `192.168.1.1`).
+Cada VPC tiene un **VPC router** que enruta el tráfico entre subnets y hacia y desde la VPC. El router tiene una interfaz en cada subnet, accesible desde la dirección **network + 1** (ej: si la subnet es `10.0.1.0/24`, el router está en `10.0.1.1`).
 
-## Tablas de Rutas (Route Tables)
+El enrutamiento se controla mediante **route tables**: conjuntos de reglas (rutas) que el router consulta para determinar a dónde enviar cada paquete. Cada ruta tiene una **Destination** (destino CIDR) y un **Target** (próximo salto).
 
-Una **route table** es un conjunto de reglas que el router usa para reenviar tráfico de red. Cada regla se llama una **ruta** (route).
+## Arquitectura
 
-### Cómo Funciona el Enrutamiento
+<Mermaid chart={`
+flowchart LR
+  EC2["EC2 Instance\n10.0.1.5"]
+  RT["Route Table\nEvaluación de rutas"]
+  IGW["IGW\n(Internet)"]
+  Local["VPC Local\n10.0.0.0/16"]
+  VGW["VGW\n(On-premises)"]
 
-1. Un paquete sale de una subnet
-2. El router examina la **IP de destino** del paquete
-3. Busca una ruta que coincida en la columna **Destination**
-4. Reenvía el paquete al recurso indicado en la columna **Target**
+  EC2 --> RT
+  RT -->|"0.0.0.0/0 → IGW"| IGW
+  RT -->|"10.0.0.0/16 → local"| Local
+  RT -->|"192.168.0.0/16 → VGW"| VGW
+`} />
+
+## Conceptos Clave
 
 ### Longest Prefix Match
 
-Si un paquete coincide con más de una ruta, el router selecciona la ruta con el **prefijo más largo** (más específico). Por ejemplo, si hay rutas para `/8` y `/16`, se elige la `/16` porque es más específica.
+Cuando un paquete coincide con más de una ruta, el router selecciona la **ruta más específica** (prefijo más largo). Este es el principio fundamental del enrutamiento IP.
+
+**Ejemplo concreto:**
+
+| Destination | Target | Coincide con |
+|---|---|---|
+| `10.0.0.0/16` | local | Todos los paquetes a 10.0.x.x |
+| `10.0.1.0/24` | tgw-xxxx | Paquetes a 10.0.1.x |
+
+Si un paquete va a `10.0.1.5`:
+- Coincide con `10.0.0.0/16` (prefijo /16)
+- Coincide con `10.0.1.0/24` (prefijo /24)
+- **Gana `10.0.1.0/24`** porque /24 es más específico que /16
+
+Si un paquete va a `10.0.2.5`:
+- Solo coincide con `10.0.0.0/16`
+- Se usa la ruta `local`
 
 ### Ruta Local (Local Route)
 
-Todas las route tables tienen **al menos una ruta por defecto**: la **ruta local**.
+Todas las route tables tienen **al menos una ruta local** que no se puede eliminar ni modificar:
 
 | Destination | Target |
 |---|---|
-| `10.16.0.0/16` (CIDR de la VPC) | `local` |
+| `10.0.0.0/16` (CIDR de la VPC) | `local` |
 
-Esta ruta permite que cualquier recurso dentro de la VPC pueda comunicarse con cualquier otro recurso en la misma VPC. Si la VPC tiene IPv6 habilitado, también existirá una ruta local para el bloque CIDR IPv6.
+Esta ruta permite que cualquier recurso dentro de la VPC pueda comunicarse con cualquier otro recurso en la misma VPC sin salir a internet. Si la VPC tiene IPv6, también existirá una ruta local para el bloque CIDR IPv6.
 
-La ruta local **no se puede eliminar ni modificar**.
+**La ruta local no se puede eliminar.** Es la base de la comunicación intra-VPC.
 
-## Asociación de Subnets y Route Tables
+### Route Tables: Principal vs Personalizada
 
-- Cada subnet está asociada a **exactamente una** route table
-- Múltiples subnets pueden compartir la **misma** route table
-- Cuando creas una VPC, se crea una **route table por defecto** automáticamente
-- Las nuevas subnets se asocian automáticamente a la route table por defecto hasta que las cambies
+| Tipo | Descripción |
+|---|---|
+| **Main (principal)** | Creada automáticamente con la VPC. Las nuevas subnets se asocian a ella por defecto |
+| **Custom (personalizada)** | Creada manualmente. Debes asociarla explícitamente a las subnets que la usarán |
 
-### ¿Por qué tener múltiples Route Tables?
+Cada subnet está asociada a **exactamente una** route table. Múltiples subnets pueden compartir la **misma** route table.
 
-Un patrón muy común es tener:
+**Mejor práctica:** no agregues rutas hacia internet a la main route table. Crea route tables personalizadas para subnets públicas y privadas.
 
-- Una **route table pública** — con ruta por defecto (`0.0.0.0/0`) apuntando al Internet Gateway
-- Una **route table privada** — con ruta por defecto apuntando a un NAT Gateway (o sin ruta por defecto)
+### Tipos de Rutas
 
-Esto permite que las subnets públicas tengan acceso directo a internet, mientras que las subnets privadas solo pueden salir a internet a través del NAT Gateway.
+| Tipo | Descripción | Ejemplo |
+|---|---|---|
+| **Estática** | Agregada manualmente por el administrador | `0.0.0.0/0 → igw-xxxx` |
+| **Propagada** | Aprendida dinámicamente vía BGP (VPN/Direct Connect) | `192.168.1.0/24` (red on-premises) |
+| **Local** | Siempre presente, no modificable | `10.0.0.0/16 → local` |
+
+Las rutas propagadas se habilitan activando **route propagation** en la route table cuando hay un Virtual Private Gateway (VGW) adjunto.
+
+### Múltiples Route Tables: Ejemplo Multi-Tier
+
+Un patrón común para arquitecturas de 3 capas:
+
+| Route Table | Subnets Asociadas | Rutas Clave |
+|---|---|---|
+| `rtb-public` | Subnets públicas (web tier) | `0.0.0.0/0 → IGW`, `10.0.0.0/16 → local` |
+| `rtb-private-app` | Subnets privadas (app tier) | `0.0.0.0/0 → NAT GW`, `10.0.0.0/16 → local` |
+| `rtb-private-db` | Subnets privadas (db tier) | Solo `10.0.0.0/16 → local` (sin acceso a internet) |
+
+Las subnets de base de datos solo tienen la ruta local — no pueden acceder a internet ni ser accedidas desde él.
+
+## Configuración
+
+Para agregar rutas a una route table:
+
+1. Navega a **VPC → Route Tables**
+2. Selecciona la route table que quieres modificar
+3. Haz clic en la pestaña **Routes → Edit routes**
+4. Haz clic en **Add route**
+5. Define la **Destination** (ej: `0.0.0.0/0`)
+6. Selecciona el **Target** (IGW, NAT Gateway, VGW, TGW, VPC Peering, etc.)
+7. Haz clic en **Save changes**
+
+Para asociar una subnet:
+1. Selecciona la route table
+2. Ve a **Subnet associations → Edit subnet associations**
+3. Marca las subnets que deben usar esta route table
+4. Guarda los cambios
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Recuerda que la ruta local siempre existe y no se puede eliminar. Si hay conflicto entre rutas, gana el prefijo más largo. Cada subnet pertenece a exactamente una route table, pero una route table puede tener múltiples subnets.
+**Consejos para el examen SAA-C03:**
+- **Longest prefix match**: cuando hay rutas solapadas, siempre gana el prefijo más largo (más específico). Una ruta `10.0.1.0/24` siempre tiene prioridad sobre `10.0.0.0/16` para paquetes a `10.0.1.x`.
+- **La ruta local no se puede eliminar** ni modificar. Siempre permite comunicación dentro de la VPC.
+- **Una subnet = una route table**. Una route table puede tener múltiples subnets.
+- Las nuevas subnets se asocian automáticamente a la **main route table** si no las asocias a otra.
+- Para VPN/Direct Connect, habilita **route propagation** para que las rutas BGP se agreguen automáticamente.
+- Las route tables de subnets de base de datos **no deben tener ruta a internet** por seguridad.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — Route Tables:**
+
+| Propiedad | Valor |
+|---|---|
+| Ruta local | Siempre presente, no eliminable |
+| Ruta local CIDR | CIDR de la VPC (ej: 10.0.0.0/16) |
+| Subnet ↔ Route Table | 1 subnet = 1 route table |
+| Route Table ↔ Subnets | 1 route table = N subnets |
+| Subnet nueva → asociada a | Main route table (por defecto) |
+| Tipos de rutas | Estática, propagada (BGP), local |
+| Selección de ruta | Longest prefix match |
+| Rutas propagadas | Requiere VGW + route propagation habilitado |
+| Max route tables por VPC | 200 (ajustable) |
+| Max rutas por route table | 1,000 (ajustable) |
 </Callout>

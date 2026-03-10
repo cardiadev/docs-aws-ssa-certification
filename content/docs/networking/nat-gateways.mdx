@@ -1,52 +1,146 @@
 ---
 title: "NAT Gateways"
-description: "NAT Gateways — acceso a internet para subredes privadas sin exponerlas al tráfico entrante."
+description: "NAT Gateways — acceso a internet para subredes privadas sin exponerlas al tráfico entrante, alta disponibilidad y comparativa con NAT Instance."
 ---
 
 ## Resumen
 
-Un **NAT Gateway** permite que recursos en subnets privadas accedan a internet para descargar actualizaciones y parches de seguridad, **sin permitir que internet inicie conexiones hacia esos recursos**. La conexión debe ser iniciada desde dentro de la VPC.
+Un **NAT Gateway** permite que recursos en subnets privadas accedan a internet (para descargar actualizaciones, llamar APIs externas, etc.) **sin permitir que internet inicie conexiones hacia esos recursos**.
 
-## El Problema que Resuelve
+El NAT Gateway:
+- Reside en una **subnet pública** con una Elastic IP
+- Traduce la IP privada de origen a su propia IP pública (Elastic IP) antes de enviar el paquete a internet
+- Bloquea automáticamente las conexiones entrantes desde internet
 
-Si tienes un servidor en una subnet privada que necesita acceso a internet (por ejemplo, para descargar actualizaciones), podrías moverlo a una subnet pública — pero eso lo expondría a todo internet.
+Es un servicio **completamente administrado por AWS** — no necesitas gestionar parches, escalado ni failover a nivel de hardware.
 
-**NAT Gateway** resuelve este problema: permite conexiones **salientes** (de la VPC a internet) pero **bloquea** conexiones **entrantes** (de internet a la VPC).
+## Arquitectura
 
-## Cómo Funciona
+<Mermaid chart={`
+flowchart LR
+  EC2A["EC2 Privada\nAZ-a (10.0.2.5)"]
+  EC2B["EC2 Privada\nAZ-b (10.0.4.5)"]
+  NATGWA["NAT GW\nSubnet Pública AZ-a\nEIP: 54.1.1.1"]
+  NATGWB["NAT GW\nSubnet Pública AZ-b\nEIP: 54.2.2.2"]
+  IGW["Internet Gateway"]
+  Internet["Internet"]
 
-El NAT Gateway requiere un **Internet Gateway** previamente configurado. El flujo es:
+  EC2A -->|"0.0.0.0/0"| NATGWA
+  EC2B -->|"0.0.0.0/0"| NATGWB
+  NATGWA --> IGW
+  NATGWB --> IGW
+  IGW --> Internet
+`} />
 
-1. Crear un **Internet Gateway** y adjuntarlo a la VPC
-2. Crear una **subnet pública** con ruta por defecto al IGW
-3. Desplegar el **NAT Gateway** en la subnet pública
-4. Configurar la route table de la subnet privada con ruta por defecto (`0.0.0.0/0`) apuntando al NAT Gateway
+> El patrón de alta disponibilidad requiere **un NAT Gateway por AZ**. Cada subnet privada enruta su tráfico al NAT Gateway de su propia AZ.
 
-El flujo de tráfico:
+## Conceptos Clave
 
-```
-Servidor (subnet privada) → NAT Gateway (subnet pública) → Internet Gateway → Internet
-```
+### Alta Disponibilidad
 
-El servidor no tiene IP pública, por lo que internet nunca puede iniciar una conexión directa hacia él.
+Los NAT Gateways son **específicos de una AZ** — si la AZ falla, el NAT Gateway en esa AZ también falla. Para lograr alta disponibilidad:
 
-## Características Principales
+- Despliega **un NAT Gateway en cada AZ** que uses
+- Configura la route table de cada subnet privada para apuntar al NAT Gateway de **su misma AZ**
+- Esto evita el tráfico **cross-AZ** y el costo adicional asociado
+
+| Patrón | # NAT Gateways | Resiliencia | Costo |
+|---|---|---|---|
+| Un solo NAT GW | 1 | Falla si la AZ cae | Menor |
+| Un NAT GW por AZ | 1 por AZ activa | Alta disponibilidad real | Mayor |
+
+**Regla del examen**: si la pregunta pide alta disponibilidad para el acceso a internet de subnets privadas, la respuesta es **un NAT Gateway por AZ**.
+
+### Escalabilidad
 
 | Característica | Detalle |
 |---|---|
-| **Servicio administrado** | AWS lo gestiona completamente tras el despliegue |
-| **Ubicación** | Se despliega en una **subnet pública** |
-| **Resiliencia** | Específico de una **AZ** (no es region-resilient) |
-| **Elastic IP** | Requiere una Elastic IP asociada |
-| **Ancho de banda** | 5 Gbps por defecto, escala automáticamente hasta 100 Gbps |
-| **Facturación** | Cobro por hora de ejecución + por GB de datos procesados |
+| **Ancho de banda inicial** | 5 Gbps por defecto |
+| **Escalado automático** | Hasta 100 Gbps sin configuración |
+| **Conexiones simultáneas** | Hasta 55,000 por destino único |
+| **Paquetes por segundo** | Hasta 4 millones |
 
-## Alta Disponibilidad
+El NAT Gateway escala automáticamente — no necesitas provisionar capacidad adicional.
 
-A diferencia de los Internet Gateways, los NAT Gateways **no son region-resilient**. Si la AZ donde está tu NAT Gateway falla, pierdes el acceso a internet para las subnets privadas que lo usan.
+### Elastic IP Requerida
 
-Para lograr redundancia, despliega **un NAT Gateway por cada AZ** que utilices y configura las route tables de cada subnet privada para apuntar al NAT Gateway de su propia AZ.
+El NAT Gateway **siempre requiere una Elastic IP**:
+- La EIP es la IP pública desde la que saldrán todas las conexiones del NAT Gateway
+- Puedes usar esta EIP para listas blancas de firewall en servicios externos (la IP de salida siempre es la misma)
+- Si necesitas cambiar la EIP, debes crear un nuevo NAT Gateway
+
+### NAT Gateway vs NAT Instance
+
+| Característica | NAT Gateway | NAT Instance |
+|---|---|---|
+| **Administración** | Totalmente administrado por AWS | Administrado por el cliente |
+| **Alta disponibilidad** | Automática dentro de la AZ | Requiere script/ASG manual |
+| **Ancho de banda** | 5-100 Gbps (auto-scale) | Limitado por tipo de instancia |
+| **Security Groups** | No aplica (no tiene SG) | Requiere SG configurado |
+| **NACLs** | Aplican a la subnet | Aplican a la subnet |
+| **Bastion host** | No (no puedes conectarte a él) | Sí (puedes usarlo como bastion) |
+| **Costo** | Por hora + por GB | Por hora de instancia (más barato) |
+| **Port forwarding** | No soportado | Soportado (personalizable) |
+| **Elastic IP** | Requerida | Opcional |
+| **Source/dest check** | Deshabilitado automáticamente | Debes deshabilitarlo manualmente |
+
+## Casos de Uso
+
+| Escenario | Solución Recomendada |
+|---|---|
+| Instancias privadas necesitan descargar actualizaciones de SO | NAT Gateway en subnet pública |
+| Lambda en VPC necesita llamar APIs externas | NAT Gateway |
+| ECS Fargate en subnet privada necesita descargar imágenes de ECR | NAT Gateway |
+| Alta disponibilidad requerida para acceso a internet | NAT Gateway por AZ |
+| Tráfico de salida de bajo volumen, quieres minimizar costos | NAT Instance (instancia t3.nano) |
+| Necesitas port forwarding o bastion host + NAT | NAT Instance |
+
+## Configuración
+
+Para desplegar un NAT Gateway con alta disponibilidad:
+
+1. **Crear Elastic IPs** (una por AZ):
+   - Navega a **EC2 → Elastic IPs → Allocate Elastic IP**
+   - Crea una EIP por cada AZ donde desplegarás un NAT Gateway
+
+2. **Crear NAT Gateway en AZ-a**:
+   - Navega a **VPC → NAT Gateways → Create NAT gateway**
+   - Selecciona la **subnet pública** en AZ-a
+   - Selecciona la **Elastic IP** correspondiente
+   - Tipo: **Public** (para acceso a internet)
+   - Haz clic en **Create NAT gateway**
+
+3. **Repetir para AZ-b** (y cada AZ adicional)
+
+4. **Actualizar route tables de subnets privadas**:
+   - Route table de subnets privadas en AZ-a: `0.0.0.0/0 → nat-gateway-az-a`
+   - Route table de subnets privadas en AZ-b: `0.0.0.0/0 → nat-gateway-az-b`
+
+5. **Verificar**: lanza una instancia en una subnet privada y verifica que puede hacer `curl https://example.com`
 
 <Callout type="warn">
-**Para el examen SAA-C03:** Los NAT Gateways necesitan un Internet Gateway para funcionar. Son AZ-específicos, así que necesitas uno por AZ para alta disponibilidad. Usan Elastic IPs. La facturación es por hora + por GB procesado. Permiten tráfico saliente pero bloquean conexiones entrantes desde internet.
+**Consejos para el examen SAA-C03:**
+- El NAT Gateway debe estar en una **subnet pública**, no privada. Es un error común.
+- Para **alta disponibilidad** necesitas un NAT Gateway **por AZ** — uno solo es un punto único de falla.
+- El NAT Gateway **no puede usarse como bastion host** — no puedes conectarte a él. Usa NAT Instance o Session Manager si necesitas acceso administrativo.
+- El NAT Gateway **no soporta IPv6** — para salida IPv6 desde subnets privadas usa el **Egress-Only Internet Gateway**.
+- La **Elastic IP** asociada al NAT Gateway es la IP de origen de todo el tráfico saliente — útil para whitelists.
+- La facturación es **por hora + por GB procesado** — considera los costos cross-AZ si no usas NAT GW por AZ.
+</Callout>
+
+<Callout type="info">
+**Cheat Sheet — NAT Gateways:**
+
+| Propiedad | Valor |
+|---|---|
+| Ubicación | Subnet pública (con ruta a IGW) |
+| Elastic IP | Requerida |
+| Resilencia | Por AZ (no region-resilient) |
+| Alta disponibilidad | 1 NAT GW por AZ |
+| Ancho de banda | 5 Gbps → 100 Gbps (automático) |
+| Security Groups | No aplica |
+| Bastion host | No soportado |
+| IPv6 | No soportado (usa Egress-Only IGW) |
+| Facturación | Por hora + por GB |
+| Administración | Totalmente gestionado por AWS |
 </Callout>
